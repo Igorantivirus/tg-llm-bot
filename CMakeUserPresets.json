@@ -5,7 +5,8 @@
       "name": "Win-BuildTools",
       "inherits": "msvc-x64-win-mt",
       "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "${env.LIBS_ROOT}/..."
+        "CMAKE_PREFIX_PATH": "${env.LIBS_ROOT}/install/tgbot-cpp-1.12.2/msvc-x64-win-mt;${env.LIBS_ROOT}/install/curl-8.21.0/msvc-x64-win-mt;${env.LIBS_ROOT}/install/json-3.12.0/msvc-x64-win-mt",
+        "Boost_ROOT": "$env{LIBS_ROOT}/src/boost_1_90_0"
       }
     },
     {
@@ -17,7 +18,8 @@
         "LIB": "C:/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/MSVC/14.41.34120/lib/x64;C:/Program Files (x86)/Windows Kits/10/Lib/10.0.22621.0/ucrt/x64;C:/Program Files (x86)/Windows Kits/10/Lib/10.0.22621.0/um/x64;$penv{LIB}"
       },
       "cacheVariables": {
-        "CMAKE_PREFIX_PATH": "${env.LIBS_ROOT}/..."
+        "CMAKE_PREFIX_PATH": "${env.LIBS_ROOT}/_install/tgbot-cpp-1.12.2/msvc-x64-win-mt",
+        "Boost_ROOT": "$env{LIBS_ROOT}/boost_1_90_0"
       }
     }
   ],
