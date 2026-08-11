@@ -1,0 +1,35 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "CMake: Clean build dir",
+            "type": "shell",
+            "command": "cmake",
+            "args": [
+                "-E",
+                "rm",
+                "-rf",
+                "build"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Collect: C++ files",
+            "type": "shell",
+            "command": "python",
+            "args": [
+                "scripts/collect.py",
+                ".cpp",
+                ".hpp",
+                ".c",
+                ".h",
+                "-d",
+                "src/",
+                "-o",
+                "build/cpp_dump.txt"
+            ],
+            "problemMatcher": [],
+            "group": "build"
+        }
+    ]
+}

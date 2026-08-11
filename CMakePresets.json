@@ -1,0 +1,167 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "msvc-ninja-multiconfig-base",
+      "hidden": true,
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build",
+      "architecture": {
+        "value": "x64",
+        "strategy": "external"
+      },
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_C_COMPILER": "cl",
+        "CMAKE_CXX_COMPILER": "cl",
+        "CMAKE_DEFAULT_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "msvc-x64-win-mt",
+      "inherits": "msvc-ninja-multiconfig-base",
+      "cacheVariables": {
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+      }
+    },
+    {
+      "name": "msvc-x64-win-md",
+      "inherits": "msvc-ninja-multiconfig-base",
+      "cacheVariables": {
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreadedDLL$<$<CONFIG:Debug>:Debug>"
+      }
+    },
+
+    {
+      "name": "gcc-ninja-multiconfig-base",
+      "hidden": true,
+      "generator": "Ninja Multi-Config",
+      "binaryDir": "${sourceDir}/build/",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_DEFAULT_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "gcc-x64-linux-ninja",
+      "inherits": "gcc-ninja-multiconfig-base"
+    },
+
+    {
+      "name": "gcc-make-debug",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "gcc-make-release",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "gcc-make-relwithdebinfo",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build/",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++",
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "Debug-mt",
+      "configurePreset": "msvc-x64-win-mt",
+      "configuration": "Debug"
+    },
+    {
+      "name": "Release-mt",
+      "configurePreset": "msvc-x64-win-mt",
+      "configuration": "Release"
+    },
+    {
+      "name": "RelWithDebInfo-mt",
+      "configurePreset": "msvc-x64-win-mt",
+      "configuration": "RelWithDebInfo"
+    },
+    {
+      "name": "Debug-md",
+      "configurePreset": "msvc-x64-win-md",
+      "configuration": "Debug"
+    },
+    {
+      "name": "Release-md",
+      "configurePreset": "msvc-x64-win-md",
+      "configuration": "Release"
+    },
+    {
+      "name": "RelWithDebInfo-md",
+      "configurePreset": "msvc-x64-win-md",
+      "configuration": "RelWithDebInfo"
+    },
+
+    {
+      "name": "Debug-gcc-ninja",
+      "configurePreset": "gcc-x64-linux-ninja",
+      "configuration": "Debug"
+    },
+    {
+      "name": "Release-gcc-ninja",
+      "configurePreset": "gcc-x64-linux-ninja",
+      "configuration": "Release"
+    },
+    {
+      "name": "RelWithDebInfo-gcc-ninja",
+      "configurePreset": "gcc-x64-linux-ninja",
+      "configuration": "RelWithDebInfo"
+    },
+
+    {
+      "name": "Debug-gcc-make",
+      "configurePreset": "gcc-make-debug"
+    },
+    {
+      "name": "Release-gcc-make",
+      "configurePreset": "gcc-make-release"
+    },
+    {
+      "name": "RelWithDebInfo-gcc-make",
+      "configurePreset": "gcc-make-relwithdebinfo"
+    }
+  ]
+}
