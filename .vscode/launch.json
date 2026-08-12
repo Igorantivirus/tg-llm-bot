@@ -15,7 +15,9 @@
       ],
       "console": "integratedTerminal",
       "stopAtEntry": false,
-      "args": []
+      "args": [
+        "config.json"
+      ]
     }
   ]
 }
