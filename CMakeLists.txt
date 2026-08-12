@@ -11,6 +11,10 @@ set(EXECUTABLE_NAME ${PROJECT_NAME})
 set(CPP_FILES
     src/main.cpp
 )
+set(INCLUDE_DIRRECTORIES
+    src/
+    extern/
+)
 
 # =================================================== #
 # ============ ПОДКЛЮЧЕНИЕ ЗАВИСИМОСТЕЙ ============= #
@@ -41,3 +45,5 @@ target_link_libraries(${EXECUTABLE_NAME} PUBLIC
     Threads::Threads
     TgBot::TgBot
 )
+
+target_include_directories(${EXECUTABLE_NAME} PUBLIC ${INCLUDE_DIRRECTORIES})
