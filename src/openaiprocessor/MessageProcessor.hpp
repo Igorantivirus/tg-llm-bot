@@ -1,8 +1,7 @@
 #pragma once
 
-#include <string_view>
-
 #include "MessageSender.hpp"
+#include "SettingsRepository.hpp"
 #include "Types.hpp"
 
 class MessageProcessor
@@ -13,11 +12,14 @@ public:
     {
     }
 
-    void processMessage(const ChatID chatId, const std::string_view msg)
+    void processMessage(const ChatID chatId, std::string msg)
     {
-        sender_.sendMessage(chatId, "Вот мой ответ!\nЛютая месть!");
+        settings_.addMessage(chatId, std::move(msg), AuthorType::User);
+        const ChatSettings &setts = settings_.getHistory(chatId);
+        // TODO
     }
 
 private:
+    SettingsRepository settings_;
     MessageSender &sender_;
 };
