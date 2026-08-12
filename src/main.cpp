@@ -1,79 +1,111 @@
-#include <tgbot/HttpClient.h>
-#include <tgbot/TgLongPoll.h>
-constexpr const char *BOT_TOKEN = "";
-
-#include <cstdlib>
-#include <exception>
 #include <iostream>
-#include <memory>
-#include <string>
 
-#include <tgbot/tgbot.h>
+#include <config/AppConfig.hpp>
+#include <config/ConfigJsonSerialization.hpp>
+#include <config/ConfigReader.hpp>
 
-int main()
+#include <bot/Bot.hpp>
+
+int main(int argc, char **argv)
 {
 #ifdef _WIN32
     std::system("chcp 65001 > nul");
 #endif
-    const auto token = std::string(BOT_TOKEN);
-    // std::cout << "Token: " << token << std::endl;
-
-    // getDefaulf
-
-    TgBot::Bot bot(token);
-    bot.getEvents().onCommand("start", [&bot](std::shared_ptr<TgBot::Message> message)
+    if (argc != 2)
     {
-        bot.getApi().sendMessage(message->chat->id, "Hi!");
-    });
-    bot.getEvents().onAnyMessage([&bot](std::shared_ptr<TgBot::Message> message)
-    {
-        const auto text = message->text.value_or("");
-        std::cout << "User wrote " << text << std::endl;
-        if (text.starts_with("/start"))
-        {
-            return;
-        }
-        bot.getApi().sendMessage(message->chat->id, "Your message is: " + text);
-    });
-
-    const auto handleError = [](const std::exception &error)
-    {
-        std::cout << "error: " << error.what() << std::endl;
-    };
-
-    TgBot::TgLongPoll longPoll(bot);
-    try
-    {
-        while (true)
-        {
-            longPoll.start();
-        }
+        std::cerr << "First argument must be path to json config of application.";
+        return EXIT_FAILURE;
     }
-    catch (...)
+    auto config = config::read<config::AppConfig>(argv[1]);
+    if (!config)
     {
-
+        std::cerr << "Read config error: " << config.error();
+        return EXIT_FAILURE;
     }
 
-    // try
-    // {
-    //     std::cout << "Bot username: " << bot.getApi().getMe()->username.value_or("") << std::endl;
-    //     bot.getApi().deleteWebhook();
-    //     while (true)
-    //     {
-
-    //         TgBot::TgLongPoll longPoll(bot, 100, 10);
-    //         longPoll.start();
-    //         std::cout << "end\n";
-    //     }
-    // }
-    // catch (const std::exception &error)
-    // {
-    //     handleError(error);
-    //     return EXIT_FAILURE;
-    // }
+    Bot bot(std::move(config.value()));
+    bot.run();
 
     return EXIT_SUCCESS;
 }
+
+// #include <tgbot/HttpClient.h>
+// #include <tgbot/TgLongPoll.h>
+
+// constexpr const char *BOT_TOKEN = "";
+
+// #include <cstdlib>
+// #include <exception>
+// #include <iostream>
+// #include <memory>
+// #include <string>
+
+// #include <tgbot/tgbot.h>
+
+// int main()
+// {
+// #ifdef _WIN32
+//     std::system("chcp 65001 > nul");
+// #endif
+//     const auto token = std::string(BOT_TOKEN);
+//     // std::cout << "Token: " << token << std::endl;
+
+//     // getDefaulf
+
+//     TgBot::Bot bot(token);
+//     bot.getEvents().onCommand("start", [&bot](std::shared_ptr<TgBot::Message> message)
+//     {
+//         bot.getApi().sendMessage(message->chat->id, "Hi!");
+//     });
+//     bot.getEvents().onAnyMessage([&bot](std::shared_ptr<TgBot::Message> message)
+//     {
+//         const auto text = message->text.value_or("");
+//         std::cout << "User wrote " << text << std::endl;
+//         if (text.starts_with("/start"))
+//         {
+//             return;
+//         }
+//         bot.getApi().sendMessage(message->chat->id, "Your message is: " + text);
+//     });
+
+//     const auto handleError = [](const std::exception &error)
+//     {
+//         std::cout << "error: " << error.what() << std::endl;
+//     };
+
+//     TgBot::TgLongPoll longPoll(bot);
+//     try
+//     {
+//         while (true)
+//         {
+//             longPoll.start();
+//         }
+//     }
+//     catch (...)
+//     {
+
+//     }
+
+//     // try
+//     // {
+//     //     std::cout << "Bot username: " << bot.getApi().getMe()->username.value_or("") << std::endl;
+//     //     bot.getApi().deleteWebhook();
+//     //     while (true)
+//     //     {
+
+//     //         TgBot::TgLongPoll longPoll(bot, 100, 10);
+//     //         longPoll.start();
+//     //         std::cout << "end\n";
+//     //     }
+//     // }
+//     // catch (const std::exception &error)
+//     // {
+//     //     handleError(error);
+//     //     return EXIT_FAILURE;
+//     // }
+
+//     return EXIT_SUCCESS;
+// }
 
 // #include <boost/asio/awaitable.hpp>
 // #include <chrono>
