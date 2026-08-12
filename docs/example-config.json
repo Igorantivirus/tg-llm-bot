@@ -1,3 +1,14 @@
 {
-    "token": "..."
+    "token": "...",
+    "defaultModel": "gpt-4o",
+    "openAiUrl": {
+        "host": "openai.com",
+        "port": "https"
+    },
+    "adminsSettings": {
+        "creator": 0,
+        "admins": [],
+        "personalChats": [],
+        "groups": []
+    }
 }
