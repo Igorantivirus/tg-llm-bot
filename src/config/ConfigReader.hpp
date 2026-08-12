@@ -15,8 +15,12 @@ std::expected<Config, std::string> read(const char *fName)
 {
     try
     {
+        std::ifstream in(fName);
+        if (!in.is_open())
+            return std::unexpected("File not found.");
         nlohmann::json json;
-        std::ifstream(fName) >> json;
+        in >> json;
+        in.close();
         return json.get<Config>();
     }
     catch (const std::exception &e)
@@ -25,7 +29,7 @@ std::expected<Config, std::string> read(const char *fName)
     }
     catch (...)
     {
-        return std::unexpected(std::string("Unknown error."));
+        return std::unexpected("Unknown error.");
     }
 }
 
