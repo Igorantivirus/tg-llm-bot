@@ -5,8 +5,10 @@
 
 #include "AuthorType.hpp"
 
-struct MessageHistory
+struct ChatSettings
 {
     std::string systemPromt;
     std::vector<std::pair<AuthorType, std::string>> mesages;
+
+    std::string model;
 };
