@@ -47,3 +47,7 @@ target_link_libraries(${EXECUTABLE_NAME} PUBLIC
 )
 
 target_include_directories(${EXECUTABLE_NAME} PUBLIC ${INCLUDE_DIRRECTORIES})
+
+if(MSVC)
+    target_compile_options(${EXECUTABLE_NAME} PRIVATE /bigobj)
+endif()
