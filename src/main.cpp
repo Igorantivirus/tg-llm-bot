@@ -1,225 +1,103 @@
-#include <iostream>
+#include <boost/asio.hpp>
+#include <boost/asio/any_io_executor.hpp>
+#include <boost/asio/awaitable.hpp>
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/this_coro.hpp>
+#include <boost/beast/core/error.hpp>
+#include <boost/beast/http/empty_body.hpp>
+#include <boost/beast/http/error.hpp>
+#include <boost/beast/http/impl/read.hpp>
+#include <boost/beast/http/parser_fwd.hpp>
+#include <boost/beast/http/string_body_fwd.hpp>
+#include <chrono>
+#include <expected>
+#include <functional>
+#include <limits>
+#include <magic_enum/magic_enum.hpp>
+#include <net/Types.hpp>
+#include <openaiprocessor/OpenAiApi.hpp>
+#include <openaiprocessor/dto/ChatCompletionsRequest.hpp>
+#include <string>
+#include <type_traits>
+#include <utils/MethodBinder.hpp>
 
-#include <config/AppConfig.hpp>
-#include <config/ConfigJsonSerialization.hpp>
-#include <config/ConfigReader.hpp>
 
-#include <bot/Bot.hpp>
+
+
+
+void initRequestFields(net::BeastRequest &req, const std::string fullHost)
+{
+    req.set(http::field::host, fullHost);
+    req.set(http::field::content_type, "application/json");
+    req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+    req.prepare_payload();
+}
+
+asio::awaitable<void> foo(const std::string_view host, const std::string_view port)
+{
+    dto::ChatCompletionsRequest dto;
+    dto.model = "igor-ai";
+    dto.messages.push_back(dto::Message{.role = "system", .content = "Ответь кратко"});
+    dto.messages.push_back(dto::Message{.role = "user", .content = "Привет, как дела?"});
+    dto.stream = true;
+
+    net::BeastRequest req(http::verb::post, "/v1/chat/completions", 11);
+    if (std::optional<std::string> sdto = dto::serialize(dto); sdto)
+    {
+        std::cout << "resuest: " << *sdto << '\n';
+        req.body() = *sdto;
+    }
+    else
+        co_return;
+    std::string fullHost;
+    fullHost.append(host);
+    fullHost.push_back(':');
+    fullHost.append(port);
+
+    initRequestFields(req, fullHost);
+
+    HttpStream stream(co_await boost::asio::this_coro::executor);
+
+    auto res = co_await stream.request(host, port, std::move(req));
+    if (!res)
+    {
+        std::cout << "Error: " << res.error().error << ". Stage: " << magic_enum::enum_name(res.error().stage) << '\n';
+        co_return;
+    }
+    auto value = res.value();
+    if (value.body)
+        std::cout << "Onbe elem: " << value.header << '\n'
+                  << value.body.value() << '\n';
+    else
+    {
+        for (auto next = co_await stream.nextChunk(); next && next.value(); next = co_await stream.nextChunk())
+        {
+            std::cout << "Next chunk: " << next.value().value() << '\n';
+        }
+    }
+}
 
 int main(int argc, char **argv)
 {
 #ifdef _WIN32
     std::system("chcp 65001 > nul");
 #endif
-    if (argc != 2)
-    {
-        std::cerr << "First argument must be path to json config of application.";
-        return EXIT_FAILURE;
-    }
-    auto config = config::read<config::AppConfig>(argv[1]);
-    if (!config)
-    {
-        std::cerr << "Read config error: " << config.error();
-        return EXIT_FAILURE;
-    }
 
-    Bot bot(std::move(config.value()));
-    bot.run();
+    // dto::ChatCompletionsRequest dto;
+    // dto.model = "igor-ai";
+    // dto.messages.push_back(dto::Message{.role = "system", .content = "Ответь кратко"});
+    // dto.messages.push_back(dto::Message{.role = "user", .content = "Привет, как дела?"});
+    // dto.stream = true;
+
+    // chatCompletions(std::move(dto), "localhost:9292");
+
+    asio::io_context io;
+
+    asio::co_spawn(io, foo("100.104.60.3", "9292"), [](std::exception_ptr ptr)
+    {
+    });
+
+    io.run();
 
     return EXIT_SUCCESS;
 }
-
-// #include <tgbot/HttpClient.h>
-// #include <tgbot/TgLongPoll.h>
-
-// constexpr const char *BOT_TOKEN = "";
-
-// #include <cstdlib>
-// #include <exception>
-// #include <iostream>
-// #include <memory>
-// #include <string>
-
-// #include <tgbot/tgbot.h>
-
-// int main()
-// {
-// #ifdef _WIN32
-//     std::system("chcp 65001 > nul");
-// #endif
-//     const auto token = std::string(BOT_TOKEN);
-//     // std::cout << "Token: " << token << std::endl;
-
-//     // getDefaulf
-
-//     TgBot::Bot bot(token);
-//     bot.getEvents().onCommand("start", [&bot](std::shared_ptr<TgBot::Message> message)
-//     {
-//         bot.getApi().sendMessage(message->chat->id, "Hi!");
-//     });
-//     bot.getEvents().onAnyMessage([&bot](std::shared_ptr<TgBot::Message> message)
-//     {
-//         const auto text = message->text.value_or("");
-//         std::cout << "User wrote " << text << std::endl;
-//         if (text.starts_with("/start"))
-//         {
-//             return;
-//         }
-//         bot.getApi().sendMessage(message->chat->id, "Your message is: " + text);
-//     });
-
-//     const auto handleError = [](const std::exception &error)
-//     {
-//         std::cout << "error: " << error.what() << std::endl;
-//     };
-
-//     TgBot::TgLongPoll longPoll(bot);
-//     try
-//     {
-//         while (true)
-//         {
-//             longPoll.start();
-//         }
-//     }
-//     catch (...)
-//     {
-
-//     }
-
-//     // try
-//     // {
-//     //     std::cout << "Bot username: " << bot.getApi().getMe()->username.value_or("") << std::endl;
-//     //     bot.getApi().deleteWebhook();
-//     //     while (true)
-//     //     {
-
-//     //         TgBot::TgLongPoll longPoll(bot, 100, 10);
-//     //         longPoll.start();
-//     //         std::cout << "end\n";
-//     //     }
-//     // }
-//     // catch (const std::exception &error)
-//     // {
-//     //     handleError(error);
-//     //     return EXIT_FAILURE;
-//     // }
-
-//     return EXIT_SUCCESS;
-// }
-
-// #include <boost/asio/awaitable.hpp>
-// #include <chrono>
-// #include <cstdlib>
-// #include <expected>
-// #include <iostream>
-
-// #include <boost/asio.hpp>
-// #include <boost/asio/ip/tcp.hpp>
-// #include <boost/beast.hpp>
-
-// namespace asio = boost::asio;
-// namespace beast = boost::beast;
-// namespace http = beast::http;
-// using tcp = asio::ip::tcp;
-
-// enum class Stage
-// {
-//     Resolve,
-//     Connect,
-//     Write,
-//     Read
-// };
-
-// using BeastRequest = http::request<http::string_body>;
-// using BeastResponse = http::response<http::string_body>;
-
-// struct ErrorResponse
-// {
-//     beast::error_code error;
-//     Stage stage;
-// };
-
-// asio::awaitable<std::expected<boost::asio::ip::basic_resolver_results<boost::asio::ip::tcp>, beast::error_code>> resolve(const std::string_view host, const std::string_view port)
-// {
-//     boost::asio::ip::tcp::resolver resolver(co_await asio::this_coro::executor);
-//     const auto [err, resolve] = co_await resolver.async_resolve(host, port, asio::as_tuple(asio::use_awaitable));
-//     if (err)
-//         co_return std::unexpected(err);
-//     co_return resolve;
-// }
-
-// asio::awaitable<std::expected<BeastResponse, ErrorResponse>> request(const std::string_view host, const std::string_view port, BeastRequest req)
-// {
-//     beast::tcp_stream stream(co_await asio::this_coro::executor);
-
-//     if (auto resolveRes = co_await resolve(host, port); resolveRes)
-//     {
-//         const auto [err, connectionRes] = co_await stream.async_connect(resolveRes.value(), asio::as_tuple(asio::use_awaitable));
-//         if (err)
-//             co_return std::unexpected(ErrorResponse{err, Stage::Connect});
-//     }
-//     else
-//         co_return std::unexpected(ErrorResponse{resolveRes.error(), Stage::Resolve});
-
-//     const auto [errWrite, bytesWrite] = co_await http::async_write(stream, std::move(req), asio::as_tuple(asio::use_awaitable));
-//     if (errWrite)
-//         co_return std::unexpected(ErrorResponse{errWrite, Stage::Write});
-
-//     boost::beast::flat_buffer buffer;
-//     http::response<http::string_body> res;
-
-//     const auto [errRead, bytesRead] = co_await http::async_read(stream, buffer, res, asio::as_tuple(asio::use_awaitable));
-//     if (errRead)
-//         co_return std::unexpected(ErrorResponse{errRead, Stage::Write});
-
-//     co_return res;
-// }
-
-// asio::awaitable<void> makeRequest()
-// {
-//     //localhost:9292/v1/models
-//     std::string host = "localhost";
-//     std::string port = "9292";
-//     std::string target = "/v1/models";
-//     std::string body = "";
-
-//     BeastRequest req(http::verb::get, target, 11);
-//     req.set(http::field::host, host);
-//     req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
-
-//     auto start = std::chrono::steady_clock::now();
-
-//     auto resp = co_await request(host, port, std::move(req));
-
-//     auto end = std::chrono::steady_clock::now();
-
-//     std::cout << "Time: " << std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count() / 1000. / 1000. << " miliseconds" << '\n';
-
-//     if (!resp)
-//         std::cout << resp.error().error << '\n';
-//     else
-//         std::cout << resp.value().body() << '\n';
-
-//     co_return;
-// }
-
-// #include <tgbot/tgbot.h>
-
-// int main()
-// {
-// #if _WIN32
-//     std::system("chcp 1251 > nul");
-// #endif
-
-//     TgBot
-
-//     // asio::io_context io;
-
-//     // asio::co_spawn(io, makeRequest, [](std::exception_ptr e)
-//     // {
-//     // });
-
-//     // io.run();
-
-//     return 0;
-// }
