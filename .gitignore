@@ -1,3 +1,4 @@
 /build
 /cwd/*
 !/cwd/.gitkeep
+docs/json-examples/
