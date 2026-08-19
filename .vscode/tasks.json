@@ -3,6 +3,7 @@
     "tasks": [
         {
             "label": "CMake: Clean build dir",
+            "detail": "Очистить папку сборки",
             "type": "shell",
             "command": "cmake",
             "args": [
