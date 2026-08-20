@@ -27,7 +27,7 @@ class ErrorCategoryImpl final : public boost::system::error_category
 {
 public:
     ErrorCategoryImpl() noexcept
-        : boost::system::error_category(0x6a3f12d7b8e04d40ULL)
+        : boost::system::error_category(0x6a3f12d7b8e04d41ULL)
     {
     }
 
