@@ -5,6 +5,7 @@
 #include <optional>
 
 #include <utils/MethodBinder.hpp>
+#include <utils/Types.hpp>
 
 #include "BusyGuard.hpp"
 #include "Error.hpp"
@@ -70,7 +71,7 @@ public:
 #pragma region async
 
     template <typename F = decltype(nullptr)>
-    asio::awaitable<std::expected<Response, beast::error_code>> request(const std::string_view host, const std::string_view port, BeastRequest req, F socketConfigurator = nullptr)
+    utils::AsyncResult<Response> request(const std::string_view host, const std::string_view port, BeastRequest req, F socketConfigurator = nullptr)
     {
         if (busy_)
             co_return std::unexpected(Error::Busy);
@@ -110,7 +111,7 @@ public:
         co_return Response{.header = parser_->get().base(), .body = std::nullopt}; // Дальше чтение чанково
     }
 
-    asio::awaitable<std::expected<std::string, beast::error_code>> nextChunk()
+    utils::AsyncResult<std::string> nextChunk()
     {
         if (busy_)
             co_return std::unexpected(Error::Busy);
@@ -211,7 +212,7 @@ private:
         parser_->header_limit(setts_.size.header);
     }
 
-    asio::awaitable<std::expected<Response, beast::error_code>> readResult()
+    utils::AsyncResult<Response> readResult()
     {
         http::response_parser<http::string_body> parser(std::move(*parser_));
         parser.body_limit(setts_.size.body);
@@ -234,7 +235,8 @@ private:
 #pragma endregion
 
 private:
-    static asio::awaitable<std::expected<asio::ip::basic_resolver_results<tcp>, beast::error_code>> resolve(asio::any_io_executor ex, const std::string_view host, const std::string_view port, const std::chrono::steady_clock::duration timeout)
+
+    static utils::AsyncResult<asio::ip::basic_resolver_results<tcp>> resolve(asio::any_io_executor ex, const std::string_view host, const std::string_view port, const std::chrono::steady_clock::duration timeout)
     {
         tcp::resolver resolver(ex);
         const auto [err, resolve] = co_await resolver.async_resolve(host, port, asio::cancel_after(timeout, asio::as_tuple(asio::use_awaitable)));
