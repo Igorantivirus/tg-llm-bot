@@ -55,6 +55,8 @@ public:
         if (!res)
             co_return std::unexpected(res.error());
         auto resp = res.value();
+        if(resp.header.result_int() / 100 != 2)
+            co_return std::unexpected(Error::FromServer);
 
         if (resp.body)
             co_return dto::deserialize<dto::ChatCompletionsResponse>(*resp.body);

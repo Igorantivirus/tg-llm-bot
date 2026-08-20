@@ -16,6 +16,7 @@ enum class Error : std::uint8_t
     InvalidResponse,
     NoSetModel,
     EmptyResponse,
+    FromServer,
     Unknown
 };
 
@@ -50,6 +51,7 @@ private:
         "Invalid response from server",
         "The chat model is not installed",
         "Empty response from server",
+        "Server return not 2xx return code",
         "Unknown"};
 };
 
