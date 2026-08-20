@@ -5,6 +5,7 @@
 #include <dto/ModelsResponse.hpp>
 #include <dto/Parser.hpp>
 #include <net/HttpStream.hpp>
+#include <utils/Types.hpp>
 
 #include "ApiResponseGenerator.hpp"
 #include "Error.hpp"
@@ -25,7 +26,7 @@ public:
     {
     }
 
-    asio::awaitable<std::expected<dto::ModelsResponse, boost::system::error_code>> models()
+    utils::AsyncResult<dto::ModelsResponse> models()
     {
         net::BeastRequest req(http::verb::get, "/v1/models", 11);
         initRequestFields(req);
@@ -41,11 +42,11 @@ public:
     }
 
     using ResponseVariant = std::variant<dto::ChatCompletionsResponse, ApiResponseGenerator>;
-    asio::awaitable<std::expected<ResponseVariant, boost::system::error_code>> chatCompletions(dto::ChatCompletionsRequest dto)
+    utils::AsyncResult<ResponseVariant> chatCompletions(dto::ChatCompletionsRequest dto)
     {
         net::BeastRequest req(http::verb::post, "/v1/chat/completions", 11);
         if (auto sdto = dto::serialize(dto); sdto)
-            req.body() = *sdto;
+            req.body() = sdto.value();
         else
             co_return std::unexpected(sdto.error());
         initRequestFields(req);
