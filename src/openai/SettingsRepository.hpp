@@ -42,7 +42,7 @@ public:
             found->second.mesages.clear();
     }
 
-    const ChatSettings &getHistory(const ChatID chatId)
+    const ChatSettings &getSettings(const ChatID chatId)
     {
         return history_[chatId];
     }
