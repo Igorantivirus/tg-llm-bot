@@ -1,11 +1,13 @@
 #pragma once
 
+#include <boost/system/detail/error_code.hpp>
 #include <expected>
 #include <optional>
 
 #include <utils/MethodBinder.hpp>
 
 #include "BusyGuard.hpp"
+#include "Error.hpp"
 #include "HttpSettings.hpp"
 #include "Types.hpp"
 
@@ -35,7 +37,7 @@ public:
     {
         stream_.close();
         buffer_.clear();
-        if(parser_)
+        if (parser_)
             parser_.reset();
     }
     HttpStream(const HttpStream &) = delete;
@@ -68,10 +70,10 @@ public:
 #pragma region async
 
     template <typename F = decltype(nullptr)>
-    asio::awaitable<std::expected<Response, ErrorResponse>> request(const std::string_view host, const std::string_view port, BeastRequest req, F socketConfigurator = nullptr)
+    asio::awaitable<std::expected<Response, beast::error_code>> request(const std::string_view host, const std::string_view port, BeastRequest req, F socketConfigurator = nullptr)
     {
         if (busy_)
-            co_return std::unexpected(ErrorResponse{{}, Stage::Busy});
+            co_return std::unexpected(Error::Busy);
         details::BusyGuard bg(busy_);
         fullReset();
 
@@ -81,7 +83,7 @@ public:
             setTimeOut(setts_.timeout.connect);
             [[maybe_unused]] const auto [err, connectionRes] = co_await stream_.async_connect(resolveRes.value(), asio::as_tuple(asio::use_awaitable));
             if (err)
-                co_return std::unexpected(ErrorResponse{err, Stage::Connect});
+                co_return std::unexpected(Error::Connect);
             if constexpr (!std::is_null_pointer_v<F>) // Продвинутая настройка, если надо
             {
                 static_assert(std::is_invocable_v<F, tcp::socket &>);
@@ -89,17 +91,17 @@ public:
             }
         }
         else
-            co_return std::unexpected(ErrorResponse{resolveRes.error(), Stage::Resolve});
+            co_return std::unexpected(Error::Resolve);
         // write request
         setTimeOut(setts_.timeout.request);
         [[maybe_unused]] const auto [errWrite, bytesWrite] = co_await http::async_write(stream_, std::move(req), asio::as_tuple(asio::use_awaitable));
         if (errWrite)
-            co_return std::unexpected(ErrorResponse{errWrite, Stage::Write});
+            co_return std::unexpected(Error::WriteRequest);
         // read headers
         setTimeOut(setts_.timeout.header);
         [[maybe_unused]] const auto [errRead, bytesReads] = co_await http::async_read_header(stream_, buffer_, *parser_, asio::as_tuple(asio::use_awaitable));
         if (errRead)
-            co_return std::unexpected(ErrorResponse{errRead, Stage::ReadHead});
+            co_return std::unexpected(Error::Busy);
 
         if (!parser_->chunked()) // Чтение сразу и возврат
             co_return co_await readResult();
@@ -108,10 +110,10 @@ public:
         co_return Response{.header = parser_->get().base(), .body = std::nullopt}; // Дальше чтение чанково
     }
 
-    asio::awaitable<std::expected<std::optional<std::string>, ErrorResponse>> nextChunk()
+    asio::awaitable<std::expected<std::string, beast::error_code>> nextChunk()
     {
         if (busy_)
-            co_return std::unexpected(ErrorResponse{{}, Stage::Busy});
+            co_return std::unexpected(Error::Busy);
         details::BusyGuard bg(busy_);
         while (reading_)
         {
@@ -122,12 +124,12 @@ public:
             if (err)
             {
                 fullReset();
-                co_return std::unexpected(ErrorResponse{err, Stage::ReadChunk});
+                co_return std::unexpected(Error::ReadChunk);
             }
             if (parser_->is_done())
                 fullReset();
         }
-        co_return std::nullopt;
+        co_return std::unexpected(Error::Success);
     }
 
 #pragma endregion
@@ -209,14 +211,14 @@ private:
         parser_->header_limit(setts_.size.header);
     }
 
-    asio::awaitable<std::expected<Response, ErrorResponse>> readResult()
+    asio::awaitable<std::expected<Response, beast::error_code>> readResult()
     {
         http::response_parser<http::string_body> parser(std::move(*parser_));
         parser.body_limit(setts_.size.body);
         setTimeOut(setts_.timeout.body);
         [[maybe_unused]] const auto [errRead, bytesRead] = co_await http::async_read(stream_, buffer_, parser, asio::as_tuple(asio::use_awaitable));
         if (errRead)
-            co_return std::unexpected(ErrorResponse{errRead, Stage::ReadBody});
+            co_return std::unexpected(Error::ReadBody);
         auto res = parser.release();
         co_return Response{.header = std::move(res.base()), .body = std::move(res.body())};
     }
