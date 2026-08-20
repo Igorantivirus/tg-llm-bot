@@ -5,6 +5,7 @@
 #include <net/HttpStream.hpp>
 
 #include "Error.hpp"
+#include "utils/Types.hpp"
 
 namespace openai
 {
@@ -20,10 +21,6 @@ private:
     }
 
 public:
-    // ApiResponseGenerator(const ApiResponseGenerator &) = delete;
-    // ApiResponseGenerator(ApiResponseGenerator &) = default;
-    // ApiResponseGenerator &operator=(const ApiResponseGenerator &) = delete;
-    // ApiResponseGenerator &operator=(ApiResponseGenerator &&) = delete;
     ~ApiResponseGenerator()
     {
         close();
@@ -34,21 +31,19 @@ public:
         return httpPtr_;
     }
 
-    asio::awaitable<std::expected<dto::ChatCompletionsResponse, boost::system::error_code>> next()
+    utils::AsyncResult<std::optional<dto::ChatCompletionsResponse>> next()
     {
         if (!isValid())
-            co_return std::unexpected(Error::Success);
+            co_return std::nullopt;
 
         auto nextChunk = co_await httpPtr_->nextChunk();
         if (!nextChunk)
-        {
-            auto err = nextChunk.error();
-            if (err == net::Error::Success)
-                co_return std::unexpected(Error::Success);
-            co_return std::unexpected(err);
-        }
+            co_return std::unexpected(nextChunk.error());
+        auto bodyOpt = nextChunk.value();
+        if (!bodyOpt)
+            co_return std::nullopt;
 
-        std::string body = std::move(nextChunk.value());
+        std::string body = std::move(bodyOpt.value());
 
         if (!body.starts_with("data: "))
         {
@@ -58,10 +53,14 @@ public:
         if (body == "data: [DONE]")
         {
             close();
-            co_return std::unexpected(Error::Success);
+            co_return std::nullopt;
         }
 
-        co_return dto::deserialize<dto::ChatCompletionsResponse>(std::string_view(body.begin() + 6, body.end()));
+        auto parsed = dto::deserialize<dto::ChatCompletionsResponse>(std::string_view(body.begin() + 6, body.end()));
+        if (!parsed)
+            co_return std::unexpected(parsed.error());
+
+        co_return parsed.value();
     }
 
 private:
