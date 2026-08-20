@@ -11,8 +11,7 @@ namespace dto
 {
 enum class Error : std::uint8_t
 {
-    Success = 0,
-    JsonserSerialize,
+    JsonserSerialize = 0,
     JsonserDeserialize,
     NlohmannParsing,
     NlohmannBuild,
@@ -45,7 +44,6 @@ public:
 
 private:
     constexpr static const std::array<const char *, static_cast<std::size_t>(Error::Unknown) + 1> names = {
-        "Success",
         "Serialisation in jsonser",
         "Deserialisation in jsonser",
         "Json parsing",

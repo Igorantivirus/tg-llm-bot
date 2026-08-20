@@ -11,7 +11,6 @@ namespace net
 {
 enum class Error : std::uint8_t
 {
-    Success = 0,
     Busy,
     Resolve,
     Connect,
@@ -49,7 +48,6 @@ public:
 
 private:
     constexpr static const std::array<const char *, static_cast<std::size_t>(Error::Unknown) + 1> names = {
-        "Success",
         "Trying work with http stream while it is busy",
         "Resolve",
         "Connect",
