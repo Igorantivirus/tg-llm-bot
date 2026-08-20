@@ -3,6 +3,7 @@
 #include <utils/JsonSerialize.hpp>
 
 #include "JsonSchema.hpp"
+#include "Role.hpp"
 
 namespace dto
 {
@@ -33,7 +34,7 @@ JSONSER_SIMPLE_SERIALIZATION_OUTLINE(Tool)
 
 struct Message
 {
-    std::string role;
+    Role        role;
     std::string content;
 };
 JSONSER_SIMPLE_SERIALIZATION_OUTLINE(Message);

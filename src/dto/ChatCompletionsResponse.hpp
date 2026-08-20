@@ -7,6 +7,8 @@
 
 #include <utils/JsonSerialize.hpp>
 
+#include "Role.hpp"
+
 namespace dto
 {
 struct FunctionCall
@@ -30,14 +32,6 @@ struct ToolCall
     std::int64_t                index{};
 };
 JSONSER_SIMPLE_SERIALIZATION_OUTLINE_WITH_DEFAULTS(ToolCall);
-
-enum class Role
-{
-    system,
-    assistant,
-    user
-};
-JSONSER_SIMPLE_SERIALIZATION_OUTLINE_WITH_DEFAULTS(Role);
 
 struct ResponseMessage
 {
