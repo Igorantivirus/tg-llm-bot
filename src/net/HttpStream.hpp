@@ -111,7 +111,7 @@ public:
         co_return Response{.header = parser_->get().base(), .body = std::nullopt}; // Дальше чтение чанково
     }
 
-    utils::AsyncResult<std::string> nextChunk()
+    utils::AsyncResult<std::optional<std::string>> nextChunk()
     {
         if (busy_)
             co_return std::unexpected(Error::Busy);
@@ -130,7 +130,7 @@ public:
             if (parser_->is_done())
                 fullReset();
         }
-        co_return std::unexpected(Error::Success);
+        co_return std::nullopt;
     }
 
 #pragma endregion
@@ -235,7 +235,6 @@ private:
 #pragma endregion
 
 private:
-
     static utils::AsyncResult<asio::ip::basic_resolver_results<tcp>> resolve(asio::any_io_executor ex, const std::string_view host, const std::string_view port, const std::chrono::steady_clock::duration timeout)
     {
         tcp::resolver resolver(ex);
