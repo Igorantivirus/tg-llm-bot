@@ -12,4 +12,5 @@ template <typename Type>
 using AsyncResult = boost::asio::awaitable<std::expected<Type, ErrorCode>>;
 template <typename Type>
 using SyncResult = std::expected<Type, ErrorCode>;
+constexpr SyncResult<void> empty = SyncResult<void>{};
 } // namespace utils
