@@ -7,6 +7,7 @@
 #include <nlohmann/json.hpp>
 
 #include <utils/JsonSerialize.hpp>
+#include <utils/Types.hpp>
 
 #include "Error.hpp"
 
@@ -14,7 +15,7 @@ namespace dto
 {
 
 template <typename Dto>
-std::expected<Dto, boost::system::error_code> deserialize(const std::string_view str)
+utils::SyncResult<Dto> deserialize(const std::string_view str)
 {
     try
     {
@@ -39,7 +40,7 @@ std::expected<Dto, boost::system::error_code> deserialize(const std::string_view
 }
 
 template <typename Dto>
-std::expected<std::string, boost::system::error_code> serialize(const Dto &dto)
+utils::SyncResult<std::string> serialize(const Dto &dto)
 {
     try
     {
