@@ -14,7 +14,7 @@ namespace dto
 {
 
 template <typename Dto>
-std::expected<Dto, boost::system::error_code> deserialize(const std::string &str)
+std::expected<Dto, boost::system::error_code> deserialize(const std::string_view str)
 {
     try
     {
