@@ -1,0 +1,15 @@
+#pragma once
+
+#include <expected>
+
+#include <boost/asio/awaitable.hpp>
+#include <boost/system/detail/error_code.hpp>
+
+namespace utils
+{
+using ErrorCode = boost::system::error_code;
+template <typename Type>
+using AsyncResult = boost::asio::awaitable<std::expected<Type, ErrorCode>>;
+template <typename Type>
+using SyncResult = std::expected<Type, ErrorCode>;
+} // namespace utils
