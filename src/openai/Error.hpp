@@ -14,6 +14,8 @@ enum class Error : std::uint8_t
     Success = 0,
     EmptyModels,
     InvalidResponse,
+    NoSetModel,
+    EmptyResponse,
     Unknown
 };
 
@@ -45,7 +47,9 @@ private:
     constexpr static const std::array<const char *, static_cast<std::size_t>(Error::Unknown) + 1> names = {
         "Success",
         "Empty body in models response",
-        "Invalid response from server"
+        "Invalid response from server",
+        "The chat model is not installed",
+        "Empty response from server",
         "Unknown"};
 };
 
