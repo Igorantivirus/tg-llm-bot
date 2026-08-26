@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdio>
 #include <stdexcept>
 #include <string_view>
@@ -127,113 +128,140 @@ concept Deserializeable = requires(const J &j, T &t) {
 template <typename Type, typename... Types>
 concept ContainsType = (std::is_same_v<Type, Types> || ...);
 
+template <AgregatStructure S>
+consteval std::array<FieldInfo, boost::pfr::tuple_size_v<S>> getNames()
+{
+    std::array<FieldInfo, boost::pfr::tuple_size_v<S>> array{};
+
+    auto one = [&array]<std::size_t I>(std::integral_constant<std::size_t, I>)
+    {
+        constexpr std::string_view               name = boost::pfr::get_name<I, S>();
+        constexpr StringLiteral<name.size() + 1> literal(name);
+        if constexpr (HasTag<S, literal>)
+        {
+            constexpr FieldInfo info = S::jsonserMetaMethod(Tag<literal>{});
+            if constexpr (info.has_value())
+                array[I] = *info;
+        }
+        else
+            array[I] = name;
+    };
+    auto all = [&one]<std::size_t... Is>(std::index_sequence<Is...>)
+    {
+        (one(std::integral_constant<std::size_t, Is>{}), ...);
+    };
+    all(std::make_index_sequence<boost::pfr::tuple_size_v<S>>{});
+    return array;
+}
+
 enum class OnMissingValue : std::uint8_t
 {
     Exception,
     DefaultFromStruct,
     DefaultFromType
 };
-enum class OnMissingOptional : std::uint8_t
+
+struct DeserializeSettings
 {
-    Exception,
-    DefaultFromStruct,
-    Nullopt
+    OnMissingValue missingField = OnMissingValue::DefaultFromStruct;
+    OnMissingValue missingOptional = OnMissingValue::DefaultFromType;
+    OnMissingValue missingEnum = OnMissingValue::DefaultFromType;
 };
-template <OnMissingValue DefaultAction = OnMissingValue::DefaultFromStruct, OnMissingOptional DefaultOption = OnMissingOptional::Nullopt>
+
 class Deserialize
 {
 public:
-    template <typename... Types, BasicJson J, typename T>
-    constexpr static void fromJson(const J &j, T &v)
+    template <BasicJson J, typename T>
+    static void fromJson(const J &j, T &v, DeserializeSettings setts = {})
     {
-        if constexpr (ContainsType<T, Types...>) // Если этот тип запретили дусериализовывать - сразу пропускаем
-            return;
-        static_assert(Deserializeable<J, T> || Enum<T> || AgregatStructure<T> || Optional<T>, "Type must be enum, agregate struct or must have from_json function.");
-        if constexpr (Enum<T>)
-            return enumFromJson(j, v);
-        else if constexpr (Optional<T>)
-            return optionalFromJson(j, v);
-        else if constexpr (Deserializeable<J, T>)
-            return j.get_to(v), void();
-        else if constexpr (AgregatStructure<T>)
-            return structFromJson(j, v);
+        // Здесь сразу 100% поле есть, лишняя проверка на contains не нужна.
+        T def{};
+        fromJsonImpl<J, T>(j, v, def, setts);
     }
 
 private:
-    template <BasicJson J, Enum E>
-    static constexpr void enumFromJson(const J &j, E &e)
+    template <typename T>
+    static constexpr OnMissingValue getValueForThisType(const DeserializeSettings &setts)
     {
-        // Надо строго сконвертировать уже существующее поле j, поэтому with defaults тут не нужен, надо либо сконвертировать, либо ошибка
+        if constexpr (Enum<T>)
+            return setts.missingEnum;
+        else if constexpr (Optional<T>)
+            return setts.missingOptional;
+        else
+            return setts.missingField;
+    }
+    template <BasicJson J, typename T>
+    static constexpr void fromJsonImpl(const J &j, T &v, T def, const DeserializeSettings &setts)
+    {
+        if constexpr (Enum<T>)
+            enumFromJson<J, T>(j, v, def);
+        else if constexpr (Optional<T>)
+            optionalFromJson<J, T>(j, v, def);
+        else if constexpr (AgregatStructure<T>)
+            structFromJson<J, T>(j, v, def, setts);
+        else if constexpr (Deserializeable<J, T>)
+            deserializableFromJson<J, T>(j, v);
+        else
+            static_assert(false, "Type must be enum|optional|struct or must have from_json function.");
+    }
+    template <BasicJson J, typename T>
+    static constexpr void fromJsonWithName(const J &j, const std::string_view sv, T &v, T &def, const DeserializeSettings &setts)
+    {
+        if (!j.contains(sv))
+        {
+            OnMissingValue valueToThis = getValueForThisType<T>(setts);
+            if (valueToThis == OnMissingValue::DefaultFromType)
+                v = T{};
+            else if (valueToThis == OnMissingValue::DefaultFromStruct)
+                v = std::move(def);
+            else
+                throw std::logic_error("Field " + std::string(sv) + " is missed in json.");
+            return;
+        }
+        J jValue = j.at(sv);
+        fromJsonImpl<J, T>(jValue, v, def, setts);
+    }
+
+    template <BasicJson J, Enum E>
+    static constexpr void enumFromJson(const J &j, E &e, E &def)
+    {
         if (!j.is_string())
             throw std::logic_error("Enum in json must be string.");
-        std::string_view sv = j.template get<std::string_view>();
-        auto             value = magic_enum::enum_cast<E>(sv);
+        std::string_view svValue = j.template get<std::string_view>();
+
+        auto value = magic_enum::enum_cast<E>(svValue);
         if (!value.has_value())
-            throw std::logic_error("Invalid enum value " + std::string(sv) + '.');
+            throw std::logic_error("Invalid enum value " + std::string(svValue) + '.');
         e = value.value();
     }
-
-    template <BasicJson J, Optional T>
-    static constexpr void optionalFromJson(const J &j, T &v)
+    template <BasicJson J, Optional O>
+    static constexpr void optionalFromJson(const J &j, O &o, O &def)
     {
-        // json поле уже есть, default не нужны
         if (j.is_null())
-            return (v = std::nullopt), void();
+            return (o = std::nullopt), void();
 
-        using InternalType = typename T::value_type;
+        using InternalType = typename O::value_type;
         InternalType internal{};
-        fromJson<J, InternalType>(j, internal);
-        v = std::move(internal);
+        fromJson(j, internal); // Тип есть, он не null, можем его повторно конвертировать, но уже во внутреннний тип
+        o = std::move(internal);
     }
-
-    template <BasicJson J, typename T>
-    static constexpr void fromJsonName(const J &j, const std::string_view name, T &v, T &&defValue)
+    template <BasicJson J, typename D>
+    static constexpr void deserializableFromJson(const J &j, D &d)
     {
-        if (!j.contains(name))
-        {
-            if constexpr (Optional<T>)
-            {
-                if constexpr (DefaultOption == OnMissingOptional::DefaultFromStruct)
-                    v = std::forward<T>(defValue);
-                else if constexpr (DefaultOption == OnMissingOptional::Nullopt)
-                    v = std::nullopt;
-                else
-                    throw std::logic_error("Json not contains optional " + std::string(name) + " field.");
-            }
-            else
-            {
-                if constexpr (DefaultAction == OnMissingValue::DefaultFromStruct)
-                    v = std::forward<T>(defValue);
-                else if constexpr (DefaultAction == OnMissingValue::DefaultFromType)
-                    v = T{};
-                else
-                    throw std::logic_error("Json not contains " + std::string(name) + " field.");
-            }
-        }
-        else
-            fromJson(j.at(name), v);
+        j.get_to(d);
     }
-
     template <BasicJson J, AgregatStructure S>
-    static constexpr void structFromJson(const J &j, S &v)
+    static constexpr void structFromJson(const J &j, S &s, S &def, const DeserializeSettings &setts)
     {
-        // Уже дали конкретное поле json - j и куда его надо десериализовать, withDefault тут не нужен, надо либо десериализовать, либо ошибка
+        static constexpr auto names = getNames<S>();
+
         if (!j.is_object())
-            throw std::logic_error("To convert json to struct, json must be is_object()");
-        S    defStruct{};
-        auto convertOne = [&j, &v, &defStruct]<std::size_t I>(std::integral_constant<std::size_t, I>)
+            throw std::logic_error("Struct in json must be object.");
+
+        auto convertOne = [&]<std::size_t I>(std::integral_constant<std::size_t, I>)
         {
-            using FieldType = boost::pfr::tuple_element_t<I, S>;
-            constexpr std::string_view               name = boost::pfr::get_name<I, S>();
-            constexpr StringLiteral<name.size() + 1> literal(name);
-            if constexpr (HasTag<S, literal>)
-            {
-                constexpr FieldInfo info = S::jsonserMetaMethod(Tag<literal>{});
-                if constexpr (info.has_value())
-                    fromJsonName<J, FieldType>(j, *info, boost::pfr::get<I>(v), std::move(boost::pfr::get<I>(defStruct)));
-            }
-            else
-                fromJsonName<J, FieldType>(j, name, boost::pfr::get<I>(v), std::move(boost::pfr::get<I>(defStruct)));
+            if constexpr (constexpr FieldInfo name = names[I]; name.has_value())
+                fromJsonWithName<J, boost::pfr::tuple_element_t<I, S>>(j, *name, boost::pfr::get<I>(s), boost::pfr::get<I>(def), setts);
         };
         auto convertFoo = [&convertOne]<std::size_t... Is>(std::index_sequence<Is...>)
         {
@@ -243,34 +271,66 @@ private:
     }
 };
 
+enum class OptionalOptionalBehaviour : bool
+{
+    Nullopt,
+    Skip
+};
+
+struct SerializeSettings
+{
+    OptionalOptionalBehaviour optionalBullopt = OptionalOptionalBehaviour::Skip;
+};
+
 class Serialize
 {
 public:
-    template <typename... Types, BasicJson J, typename T>
-    static constexpr void toJson(J &j, const T &v)
+    template <BasicJson J, typename T>
+    static void toJson(J &j, const T &v, SerializeSettings setts = {})
     {
-        j.clear();
-        if constexpr (ContainsType<T, Types...>) // Если этот тип запретили сериализовывать - сразу пропускаем
-            return;
-        static_assert(Serializeable<J, T> || Enum<T> || AgregatStructure<T> || Variant<T> || NullOpt<T>, "Type must be enum, agregate struct or must have to_json function.");
-        if constexpr (Enum<T>)
-            return enumToJson(j, v);
-        else if constexpr (Variant<T>)
-            return variantToJson(j, v);
-        else if constexpr (Serializeable<J, T>)
-            return (j = v), void();
-        else if constexpr (AgregatStructure<T>)
-            return structToJson<Types..., J, T>(j, v);
+        toJsonImpl<J, T>(j, v, setts);
     }
 
 private:
+    template <BasicJson J, typename T>
+    static constexpr void toJsonImpl(J &j, const T &v, const SerializeSettings &setts)
+    {
+        if constexpr (Enum<T>)
+            enumToJson<J, T>(j, v);
+        else if constexpr (Variant<T>)
+            variantToJson<J, T>(j, v, setts);
+        else if constexpr (Optional<T>)
+            optionalToJson<J, T>(j, v, setts);
+        else if constexpr (Serializeable<J, T>)
+            serializableToJson<J, T>(j, v);
+        else if constexpr (AgregatStructure<T>)
+            structToJson<J, T>(j, v, setts);
+        else
+            static_assert(false, "Type must be enum|optional|struct or must have from_json function.");
+    }
+    template <BasicJson J, Optional O>
+    static constexpr void optionalToJsonWithName(J &j, const std::string_view sv, const O &o, const SerializeSettings &setts)
+    {
+        if (o.has_value())
+            return toJsonImpl(j[sv], o.value(), setts);
+        if (setts.optionalBullopt == OptionalOptionalBehaviour::Nullopt)
+            j = nullptr;
+    }
+    template <BasicJson J, typename T>
+    static constexpr void toJsonWithName(J &j, const std::string_view sv, const T &v, const SerializeSettings &setts)
+    {
+        if constexpr (Optional<T>) // Особый тип
+            return optionalToJsonWithName<J, T>(j, sv, v, setts);
+        toJsonImpl(j[sv], v, setts);
+    }
+
     template <BasicJson J, Variant V>
-    static constexpr void variantToJson(J &j, const V &v)
+    static constexpr void variantToJson(J &j, const V &v, const SerializeSettings &setts)
     {
         // Что-то вызовется гаарантировано
-        std::visit([&j]<typename T>(const T &v)
+        std::visit([&j, &setts]<typename T>(const T &v)
         {
-            toJson(j, v);
+            toJsonImpl(j, v, setts);
         }, v);
     }
     template <BasicJson J, Enum E>
@@ -281,39 +341,28 @@ private:
             throw std::logic_error("Enum value is out of magic_enum support range.");
         j = name;
     }
-
-    template <typename... Types, BasicJson J, typename T>
-    static constexpr void toJsonName(J &j, const std::string_view name, const T &v)
+    template <BasicJson J, typename D>
+    static constexpr void serializableToJson(J &j, const D &d)
     {
-        if constexpr (Optional<T>)
-        {
-            if (v.has_value()) // если есть значение - сразу делаем, неважно, надо или не надо сериализовывать
-                toJson<Types..., J, T>(j[name], *v);
-            else if (!v.has_value() && !ContainsType<std::nullopt_t, Types...>) // Если нет значения, но nullopt надо сериализовывать (нет в списке исключений) - делаем прямой вызов, там nlohmann сам сделает null
-                toJson<Types..., J, T>(j[name], std::nullopt);
-        }
-        else // Тип допустим, optional обработали - можно напрямую сериализовывать
-            toJson(j[name], v);
+        j = d;
     }
-
-    template <typename... Types, BasicJson J, AgregatStructure S>
-    static constexpr void structToJson(J &j, const S &v)
+    template <BasicJson J, Optional O>
+    static constexpr void optionalToJson(J &j, const O &o, const SerializeSettings &setts)
     {
+        if (!o.has_value())
+            j = nullptr;
+        else
+            toJsonImpl(j, o.value(), setts);
+    }
+    template <BasicJson J, AgregatStructure S>
+    static constexpr void structToJson(J &j, const S &s, const SerializeSettings &setts)
+    {
+        static constexpr auto names = getNames<S>();
         j = J::object();
-
-        auto convertOne = [&j, &v]<std::size_t I>(std::integral_constant<std::size_t, I>)
+        auto convertOne = [&]<std::size_t I>(std::integral_constant<std::size_t, I>)
         {
-            using FieldType = boost::pfr::tuple_element_t<I, S>;
-            constexpr std::string_view               name = boost::pfr::get_name<I, S>();
-            constexpr StringLiteral<name.size() + 1> literal(name);
-            if constexpr (HasTag<S, literal>)
-            {
-                constexpr FieldInfo info = S::jsonserMetaMethod(Tag<literal>{});
-                if constexpr (info.has_value())
-                    toJsonName<Types..., J, S>(j, info.value(), boost::pfr::get<I>(v));
-            }
-            else
-                toJsonName<Types..., J, S>(j, name, boost::pfr::get<I>(v));
+            if constexpr (constexpr FieldInfo name = names[I]; name.has_value())
+                toJsonWithName<J, boost::pfr::tuple_element_t<I, S>>(j, *name, boost::pfr::get<I>(s), setts);
         };
         auto convertFoo = [&convertOne]<std::size_t... Is>(std::index_sequence<Is...>)
         {
@@ -324,6 +373,8 @@ private:
 };
 
 } // namespace jsonser
+
+#ifndef JSONSER_DISABLE_STRUCT_MACRO
 
 #ifndef JSONSER_FIELD
 #define JSONSER_FIELD(FIELD, NAME)                                                     \
@@ -341,4 +392,6 @@ private:
     {                                                                                  \
         return std::nullopt;                                                           \
     }
+#endif
+
 #endif
