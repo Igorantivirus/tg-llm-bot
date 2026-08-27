@@ -2,13 +2,12 @@
 
 #include <cstdint>
 #include <optional>
-#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <variant>
 #include <vector>
 
-#include <utils/JsonSerialize.hpp>
+#include <utils/Jsonser.hpp>
 #include <utils/NonNullCopybleUniquePtr.hpp>
 
 namespace dto::schema
@@ -19,93 +18,93 @@ using SchemaPtr = utils::NonNullCopybleUniquePtr<Schema>; // must be non nullptr
 
 struct Null
 {
-    std::string                JSONSER_FDEFN(type = "null");
-    std::optional<std::string> JSONSER_FDEFN(description);
+    std::string                type = "null";
+    std::optional<std::string> description;
 };
 
 struct Boolean
 {
-    std::string                JSONSER_FDEFN(type = "boolean");
-    std::optional<std::string> JSONSER_FDEFN(description);
-    std::optional<bool>        JSONSER_FIELD(const_field, "const");
+    std::string                     type = "boolean";
+    std::optional<std::string>      description;
+    std::optional<bool> const_field JSONSER_FIELD(const_field, "const");
 };
 
 struct String
 {
-    std::string                             JSONSER_FDEFN(type = "string");
-    std::optional<std::string>              JSONSER_FDEFN(description);
-    std::optional<std::vector<std::string>> JSONSER_FIELD(enum_field, "enum");
-    std::optional<std::string>              JSONSER_FIELD(const_field, "const");
+    std::string                                        type = "string";
+    std::optional<std::string>                         description;
+    std::optional<std::vector<std::string>> enum_field JSONSER_FIELD(enum_field, "enum");
+    std::optional<std::string> const_field             JSONSER_FIELD(const_field, "const");
 
-    std::optional<std::int64_t> JSONSER_FDEFN(minLength);
-    std::optional<std::int64_t> JSONSER_FDEFN(maxLength);
-    std::optional<std::string>  JSONSER_FDEFN(pattern);
-    std::optional<std::string>  JSONSER_FDEFN(format);
+    std::optional<std::int64_t> minLength;
+    std::optional<std::int64_t> maxLength;
+    std::optional<std::string>  pattern;
+    std::optional<std::string>  format;
 };
 
 struct Integer
 {
-    std::string                              JSONSER_FDEFN(type = "integer");
-    std::optional<std::string>               JSONSER_FDEFN(description);
-    std::optional<std::vector<std::int64_t>> JSONSER_FIELD(enum_field, "enum");
-    std::optional<std::int64_t>              JSONSER_FIELD(const_field, "const");
+    std::string                                         type = "integer";
+    std::optional<std::string>                          description;
+    std::optional<std::vector<std::int64_t>> enum_field JSONSER_FIELD(enum_field, "enum");
+    std::optional<std::int64_t> const_field             JSONSER_FIELD(const_field, "const");
 
-    std::optional<std::int64_t> JSONSER_FDEFN(minimum);
-    std::optional<std::int64_t> JSONSER_FDEFN(maximum);
-    std::optional<std::int64_t> JSONSER_FDEFN(exclusiveMinimum);
-    std::optional<std::int64_t> JSONSER_FDEFN(exclusiveMaximum);
-    std::optional<std::int64_t> JSONSER_FDEFN(multipleOf);
+    std::optional<std::int64_t> minimum;
+    std::optional<std::int64_t> maximum;
+    std::optional<std::int64_t> exclusiveMinimum;
+    std::optional<std::int64_t> exclusiveMaximum;
+    std::optional<std::int64_t> multipleOf;
 };
 
 struct Number
 {
-    std::string                        JSONSER_FDEFN(type = "number");
-    std::optional<std::string>         JSONSER_FDEFN(description);
-    std::optional<std::vector<double>> JSONSER_FIELD(enum_field, "enum");
-    std::optional<double>              JSONSER_FIELD(const_field, "const");
+    std::string                                   type = "number";
+    std::optional<std::string>                    description;
+    std::optional<std::vector<double>> enum_field JSONSER_FIELD(enum_field, "enum");
+    std::optional<double> const_field             JSONSER_FIELD(const_field, "const");
 
-    std::optional<double> JSONSER_FDEFN(minimum);
-    std::optional<double> JSONSER_FDEFN(maximum);
-    std::optional<double> JSONSER_FDEFN(exclusiveMinimum);
-    std::optional<double> JSONSER_FDEFN(exclusiveMaximum);
-    std::optional<double> JSONSER_FDEFN(multipleOf);
+    std::optional<double> minimum;
+    std::optional<double> maximum;
+    std::optional<double> exclusiveMinimum;
+    std::optional<double> exclusiveMaximum;
+    std::optional<double> multipleOf;
 };
 
 struct Array
 {
-    std::string                JSONSER_FDEFN(type = "array");
-    std::optional<std::string> JSONSER_FDEFN(description);
+    std::string                type = "array";
+    std::optional<std::string> description;
 
-    std::optional<std::int64_t> JSONSER_FDEFN(minItems);
-    std::optional<std::int64_t> JSONSER_FDEFN(maxItems);
-    std::optional<bool>         JSONSER_FDEFN(uniqueItems);
-    std::optional<SchemaPtr>    JSONSER_FDEFN(items);
+    std::optional<std::int64_t> minItems;
+    std::optional<std::int64_t> maxItems;
+    std::optional<bool>         uniqueItems;
+    std::optional<SchemaPtr>    items;
 };
 
 struct Ref
 {
-    std::string                JSONSER_FIELD(ref, "$ref");
-    std::optional<std::string> JSONSER_FDEFN(description);
+    std::string ref            JSONSER_FIELD(ref, "$ref");
+    std::optional<std::string> description;
 };
 
 struct Object
 {
-    std::string                JSONSER_FDEFN(type = "object");
-    std::optional<std::string> JSONSER_FDEFN(description);
+    std::string                type = "object";
+    std::optional<std::string> description;
 
-    std::optional<std::vector<std::string>>                   JSONSER_FDEFN(required);
-    std::optional<std::variant<bool, SchemaPtr>>              JSONSER_FDEFN(additionalProperties);
-    std::optional<std::int64_t>                               JSONSER_FDEFN(minProperties);
-    std::optional<std::int64_t>                               JSONSER_FDEFN(maxProperties);
-    std::optional<std::unordered_map<std::string, SchemaPtr>> JSONSER_FDEFN(properties);
+    std::optional<std::vector<std::string>>                   required;
+    std::optional<std::variant<bool, SchemaPtr>>              additionalProperties;
+    std::optional<std::int64_t>                               minProperties;
+    std::optional<std::int64_t>                               maxProperties;
+    std::optional<std::unordered_map<std::string, SchemaPtr>> properties;
 
-    std::optional<std::unordered_map<std::string, SchemaPtr>> JSONSER_FIELD(defs, "$defs");
+    std::optional<std::unordered_map<std::string, SchemaPtr>> defs JSONSER_FIELD(defs, "$defs");
 };
 
 struct AnyOf
 {
-    std::optional<std::string> JSONSER_FDEFN(description);
-    std::vector<SchemaPtr>     JSONSER_FDEFN(anyOf);
+    std::optional<std::string> description;
+    std::vector<SchemaPtr>     anyOf;
 };
 
 struct Schema
@@ -122,35 +121,5 @@ struct Schema
         Ref>
         value;
 };
-
-template <utils::jsonser::BasicJson J, typename... Types>
-void to_json(J &j, const std::variant<Types...> &var)
-{
-    std::visit([&j](const auto &val)
-    {
-        j = val;
-    }, var);
-}
-
-template <utils::jsonser::BasicJson J>
-void to_json(J &j, const SchemaPtr &ptr)
-{
-    j = ptr->value;
-}
-template <utils::jsonser::BasicJson J>
-void from_json(const J &j, SchemaPtr &ptr)
-{
-    throw std::logic_error("It is forbidden to call deserialization structures with JsonSchema.");
-}
-
-JSONSER_SERIALIZATION_OUTLINE_WITH_DEFAULTS(Null);
-JSONSER_SERIALIZATION_OUTLINE_WITH_DEFAULTS(Boolean);
-JSONSER_SERIALIZATION_OUTLINE_WITH_DEFAULTS(String);
-JSONSER_SERIALIZATION_OUTLINE_WITH_DEFAULTS(Integer);
-JSONSER_SERIALIZATION_OUTLINE_WITH_DEFAULTS(Number);
-JSONSER_SERIALIZATION_OUTLINE_WITH_DEFAULTS(Array);
-JSONSER_SERIALIZATION_OUTLINE_WITH_DEFAULTS(Ref);
-JSONSER_SERIALIZATION_OUTLINE_WITH_DEFAULTS(Object);
-JSONSER_SERIALIZATION_OUTLINE_WITH_DEFAULTS(AnyOf);
 
 } // namespace dto::schema

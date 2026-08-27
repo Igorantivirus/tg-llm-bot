@@ -2,8 +2,6 @@
 
 #include <cstdint>
 
-#include <utils/JsonSerialize.hpp>
-
 namespace dto
 {
 enum class Role : std::uint8_t
@@ -12,5 +10,4 @@ enum class Role : std::uint8_t
     assistant,
     user
 };
-JSONSER_SIMPLE_SERIALIZATION_OUTLINE_WITH_DEFAULTS(Role);
 } // namespace dto

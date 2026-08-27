@@ -1,20 +1,10 @@
 #pragma once
 
-#include <utils/JsonSerialize.hpp>
-
 #include "JsonSchema.hpp"
 #include "Role.hpp"
 
 namespace dto
 {
-template <utils::jsonser::BasicJson J, typename... Types>
-void to_json(J &j, const std::variant<Types...> &var)
-{
-    std::visit([&j](const auto &val)
-    {
-        j = val;
-    }, var);
-}
 
 struct ToolFunction
 {
@@ -22,7 +12,6 @@ struct ToolFunction
     std::string    description;
     schema::Object properties;
 };
-JSONSER_SIMPLE_SERIALIZATION_OUTLINE(ToolFunction);
 
 struct Tool
 {
@@ -30,34 +19,29 @@ struct Tool
     ToolFunction function;
     bool         strict;
 };
-JSONSER_SIMPLE_SERIALIZATION_OUTLINE(Tool)
 
 struct Message
 {
     Role        role;
     std::string content;
 };
-JSONSER_SIMPLE_SERIALIZATION_OUTLINE(Message);
 
 struct ResponseFormat
 {
     std::string                   type;
     std::optional<schema::Object> json_schema;
 };
-JSONSER_SIMPLE_SERIALIZATION_OUTLINE(ResponseFormat);
 
 struct ChoiceFunction
 {
     std::string name;
 };
-JSONSER_SIMPLE_SERIALIZATION_OUTLINE(ChoiceFunction);
 
 struct ToolChoice
 {
     std::string    type = "function";
     ChoiceFunction function;
 };
-JSONSER_SIMPLE_SERIALIZATION_OUTLINE(ToolChoice);
 
 struct ChatCompletionsRequest
 {
@@ -82,5 +66,4 @@ struct ChatCompletionsRequest
     std::optional<std::vector<Tool>>                     tools;           // Инструменты
     std::optional<std::variant<std::string, ToolChoice>> tool_choice;     // Обязательно выбора инструмента
 };
-JSONSER_SIMPLE_SERIALIZATION_OUTLINE(ChatCompletionsRequest);
 } // namespace dto

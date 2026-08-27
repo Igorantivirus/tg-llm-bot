@@ -1,12 +1,11 @@
 #pragma once
 
-#include <expected>
-#include <string>
+#include <exception>
+#include <iostream>
 
-#include <boost/system/detail/error_code.hpp>
 #include <nlohmann/json.hpp>
 
-#include <utils/JsonSerialize.hpp>
+#include <utils/Jsonser.hpp>
 #include <utils/Types.hpp>
 
 #include "Error.hpp"
@@ -19,22 +18,24 @@ utils::SyncResult<Dto> deserialize(const std::string_view str)
 {
     try
     {
-        Dto res;
-
+        Dto            res;
         nlohmann::json j = nlohmann::json::parse(str);
-        j.get_to(res);
+        jsonser::Deserialize::fromJson(j, res);
         return res;
-    }
-    catch (const utils::jsonser::Error &e)
-    {
-        return std::unexpected(Error::JsonserDeserialize);
     }
     catch (const nlohmann::json::exception &e)
     {
+        std::cerr << "Deserialize error: " << e.what() << " with string: " << str << '\n';
         return std::unexpected(Error::NlohmannBuild);
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Deserialize error: " << e.what() << " with string: " << str << '\n';
+        return std::unexpected(Error::JsonserDeserialize);
     }
     catch (...)
     {
+        std::cerr << "Deserialize unknown error with string: " << str << '\n';
         return std::unexpected(Error::Unknown);
     }
 }
@@ -44,18 +45,23 @@ utils::SyncResult<std::string> serialize(const Dto &dto)
 {
     try
     {
-        return nlohmann::json(dto).dump();
-    }
-    catch (const utils::jsonser::Error &e)
-    {
-        return std::unexpected(Error::JsonserSerialize);
+        nlohmann::json j;
+        jsonser::Serialize::toJson(j, dto);
+        return j.dump();
     }
     catch (const nlohmann::json::exception &e)
     {
+        std::cerr << "Serialize error: " << e.what() << " with type: " << typeid(dto).name() << '\n';
         return std::unexpected(Error::NlohmannParsing);
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Serialize error: " << e.what() << " with type: " << typeid(dto).name() << '\n';
+        return std::unexpected(Error::JsonserSerialize);
     }
     catch (...)
     {
+        std::cerr << "Serialize unknown error with type: " << typeid(dto).name() << '\n';
         return std::unexpected(Error::Unknown);
     }
 }

@@ -5,8 +5,6 @@
 #include <string>
 #include <vector>
 
-#include <utils/JsonSerialize.hpp>
-
 #include "Role.hpp"
 
 namespace dto
@@ -16,13 +14,11 @@ struct FunctionCall
     std::optional<std::string> name;
     std::string                arguments;
 };
-JSONSER_SIMPLE_SERIALIZATION_OUTLINE_WITH_DEFAULTS(FunctionCall);
 
 enum class ToolCallType
 {
     function
 };
-JSONSER_SIMPLE_SERIALIZATION_OUTLINE_WITH_DEFAULTS(ToolCallType);
 
 struct ToolCall
 {
@@ -31,7 +27,6 @@ struct ToolCall
     std::optional<std::string>  id;
     std::int64_t                index{};
 };
-JSONSER_SIMPLE_SERIALIZATION_OUTLINE_WITH_DEFAULTS(ToolCall);
 
 struct ResponseMessage
 {
@@ -40,7 +35,6 @@ struct ResponseMessage
     std::optional<std::string>           content;           // Ответ модели
     std::optional<std::vector<ToolCall>> tool_calls;        // вызовы функций модели
 };
-JSONSER_SIMPLE_SERIALIZATION_OUTLINE_WITH_DEFAULTS(ResponseMessage);
 
 enum class FinishReason
 {
@@ -48,7 +42,6 @@ enum class FinishReason
     length,
     tool_calls
 };
-JSONSER_SIMPLE_SERIALIZATION_OUTLINE_WITH_DEFAULTS(FinishReason);
 
 struct Choice
 {
@@ -58,7 +51,6 @@ struct Choice
     std::optional<ResponseMessage> delta;   // std::nullopt, если message
     // std::optional<std::string>     logprobs;
 };
-JSONSER_SIMPLE_SERIALIZATION_OUTLINE_WITH_DEFAULTS(Choice);
 
 struct TokenDetails
 {
@@ -69,7 +61,6 @@ struct TokenDetails
     // std::int64_t accepted_prediction_tokens{};
     // std::int64_t rejected_prediction_tokens{};
 };
-JSONSER_SIMPLE_SERIALIZATION_OUTLINE_WITH_DEFAULTS(TokenDetails);
 
 struct Usage
 {
@@ -78,7 +69,6 @@ struct Usage
     std::int64_t total_tokens{};        // Всего токенов
     TokenDetails prompt_tokens_details; // Доп информация о токенах
 };
-JSONSER_SIMPLE_SERIALIZATION_OUTLINE_WITH_DEFAULTS(Usage);
 
 struct ChatCompletionsResponse
 {
@@ -90,5 +80,4 @@ struct ChatCompletionsResponse
     std::string          object;             // "chat.completion" | "chat.completion.chunk"
     std::optional<Usage> usage;              // Использование токенов
 };
-JSONSER_SIMPLE_SERIALIZATION_OUTLINE_WITH_DEFAULTS(ChatCompletionsResponse);
 } // namespace dto
