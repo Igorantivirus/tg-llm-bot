@@ -10,6 +10,7 @@ set(EXECUTABLE_NAME ${PROJECT_NAME})
 
 set(CPP_FILES
     src/main.cpp
+    # src/main_tests.cpp
 )
 set(INCLUDE_DIRRECTORIES
     src/
