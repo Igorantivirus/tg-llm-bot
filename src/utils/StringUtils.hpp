@@ -31,11 +31,12 @@ public:
         return res;
     }
 
-private:
-    constexpr static bool isSpaceSymbol(const char c)
+    inline static constexpr bool isSpaceSymbol(const char c)
     {
         return c == ' ' || c == '\t' || c == '\n';
     }
+
+private:
 };
 
 } // namespace utils
