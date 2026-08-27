@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdio>
+#include <nlohmann/adl_serializer.hpp>
 #include <stdexcept>
 #include <string_view>
 #include <type_traits>
@@ -65,15 +66,6 @@ concept BasicJson = requires {
 };
 
 template <typename T>
-concept AgregatStructure = requires {
-    requires std::is_aggregate_v<T>;
-    requires !std::is_polymorphic_v<T>;
-    requires std::is_default_constructible_v<T>;
-    requires std::is_move_assignable_v<T>;
-    requires !std::is_union_v<T>;
-};
-
-template <typename T>
 struct is_variant : std::false_type
 {
 };
@@ -127,6 +119,18 @@ concept Deserializeable = requires(const J &j, T &t) {
 
 template <typename Type, typename... Types>
 concept ContainsType = (std::is_same_v<Type, Types> || ...);
+
+template <typename T>
+concept AgregatStructure = requires {
+    requires std::is_aggregate_v<T>;
+    requires !std::is_polymorphic_v<T>;
+    requires std::is_default_constructible_v<T>;
+    requires std::is_move_assignable_v<T>;
+    requires !std::is_union_v<T>;
+};
+
+template <typename T>
+concept ReflectStruct = AgregatStructure<T> && !std::ranges::range<T> && !Optional<T> && !Variant<T> && !Enum<T>;
 
 template <AgregatStructure S>
 consteval std::array<FieldInfo, boost::pfr::tuple_size_v<S>> getNames()
@@ -196,7 +200,7 @@ private:
         if constexpr (Enum<T>)
             enumFromJson<J, T>(j, v, def);
         else if constexpr (Optional<T>)
-            optionalFromJson<J, T>(j, v, def);
+            optionalFromJson<J, T>(j, v, def, setts);
         else if constexpr (AgregatStructure<T>)
             structFromJson<J, T>(j, v, def, setts);
         else if constexpr (Deserializeable<J, T>)
@@ -235,14 +239,14 @@ private:
         e = value.value();
     }
     template <BasicJson J, Optional O>
-    static constexpr void optionalFromJson(const J &j, O &o, O &def)
+    static constexpr void optionalFromJson(const J &j, O &o, O &def, const DeserializeSettings &setts)
     {
         if (j.is_null())
             return (o = std::nullopt), void();
 
         using InternalType = typename O::value_type;
         InternalType internal{};
-        fromJson(j, internal); // Тип есть, он не null, можем его повторно конвертировать, но уже во внутреннний тип
+        fromJson(j, internal, setts); // Тип есть, он не null, можем его повторно конвертировать, но уже во внутреннний тип
         o = std::move(internal);
     }
     template <BasicJson J, typename D>
@@ -279,7 +283,7 @@ enum class OptionalOptionalBehaviour : bool
 
 struct SerializeSettings
 {
-    OptionalOptionalBehaviour optionalBullopt = OptionalOptionalBehaviour::Skip;
+    OptionalOptionalBehaviour optionalNullopt = OptionalOptionalBehaviour::Skip;
 };
 
 class Serialize
@@ -301,10 +305,10 @@ private:
             variantToJson<J, T>(j, v, setts);
         else if constexpr (Optional<T>)
             optionalToJson<J, T>(j, v, setts);
-        else if constexpr (Serializeable<J, T>)
-            serializableToJson<J, T>(j, v);
         else if constexpr (AgregatStructure<T>)
             structToJson<J, T>(j, v, setts);
+        else if constexpr (Serializeable<J, T>)
+            serializableToJson<J, T>(j, v);
         else
             throw std::logic_error("Type must be enum|optional|struct or must have from_json function.");
     }
@@ -313,8 +317,8 @@ private:
     {
         if (o.has_value())
             return toJsonImpl(j[sv], o.value(), setts);
-        if (setts.optionalBullopt == OptionalOptionalBehaviour::Nullopt)
-            j = nullptr;
+        if (setts.optionalNullopt == OptionalOptionalBehaviour::Nullopt)
+            j[sv] = nullptr;
     }
     template <BasicJson J, typename T>
     static constexpr void toJsonWithName(J &j, const std::string_view sv, const T &v, const SerializeSettings &setts)
@@ -395,3 +399,20 @@ private:
 #endif
 
 #endif
+
+namespace nlohmann
+{
+template <jsonser::ReflectStruct T>
+struct adl_serializer<T>
+{
+    static void to_json(json &j, const T &value)
+    {
+        jsonser::Serialize::toJson(j, value);
+    }
+    static void from_json(const json &j, T &value)
+    {
+        jsonser::Deserialize::fromJson(j, value);
+    }
+};
+
+} // namespace nlohmann
