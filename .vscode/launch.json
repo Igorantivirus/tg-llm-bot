@@ -13,7 +13,7 @@
           "value": "${env:PATH};${command:cmake.getLaunchTargetDirectory}"
         }
       ],
-      "console": "externalTerminal", //integratedTerminal
+      "console": "integratedTerminal", // externalTerminal
       "stopAtEntry": false,
       "args": [
         "config.json"
