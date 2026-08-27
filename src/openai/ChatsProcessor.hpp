@@ -14,6 +14,7 @@
 #include "Types.hpp"
 #include "dto/ChatCompletionsResponse.hpp"
 #include "openai/ChatSettings.hpp"
+#include "openai/Types.hpp"
 #include "utils/Types.hpp"
 
 namespace openai
@@ -28,10 +29,7 @@ public:
     {
     }
 
-    void setSender(MessageSender &sender)
-    {
-        sender_ = &sender;
-    }
+#pragma region Get
 
     const std::unordered_set<std::string> &getModels() const
     {
@@ -41,21 +39,52 @@ public:
     {
         return repo_.getSettings(chatId);
     }
+
+#pragma endregion
+
+#pragma region Post
+
+    // Очистить контекст чата
+    void clearContext(const ChatID chatId)
+    {
+        repo_.clearHistory(chatId);
+    }
+    // Установить системный промт
+    void setSystem(const ChatID chatId, std::string system)
+    {
+        repo_.setSystemPromt(chatId, std::move(system));
+    }
+    // Установить модель чата
     void setModelToChat(const ChatID chatId, std::string model)
     {
         repo_.setModelToChat(chatId, std::move(model));
     }
-
-    void initModels()
-    {
-        asio::co_spawn(ex_, initModelsSync(), asio::detached);
-    }
-
+    // Отправка и обработка сообщения в чате
     void sendMessage(const ChatID chatId, std::string msg, const dto::Role role = dto::Role::user)
     {
         asio::co_spawn(ex_, sendMessageSync(chatId, std::move(msg), role), asio::detached);
     }
 
+#pragma endregion
+
+#pragma region Init
+
+    // Установить интерфейс отпарвки сообщения
+    void setSender(MessageSender &sender)
+    {
+        sender_ = &sender;
+    }
+    // Инициализировать модели
+    void initModels()
+    {
+        asio::co_spawn(ex_, initModelsSync(), asio::detached);
+    }
+
+#pragma endregion
+
+#pragma region Async
+
+    // Инициализировать модели
     utils::AsyncResult<void> initModelsSync()
     {
         auto modelsDto = co_await api_.models();
@@ -72,6 +101,7 @@ public:
         co_return utils::empty;
     }
 
+    // Отпарвить сообщение и обработать его асинхронно
     utils::AsyncResult<void> sendMessageSync(const ChatID chatId, std::string msg, const dto::Role role = dto::Role::user)
     {
         repo_.addMessage(chatId, msg, role);
@@ -97,6 +127,8 @@ public:
         else
             co_return co_await streamMessages(std::get<1>(var), chatId);
     }
+
+#pragma endregion
 
 private:
     asio::any_io_executor ex_;
