@@ -1,5 +1,6 @@
 #pragma once
 
+#include "utils/Jsonser.hpp"
 #include <exception>
 #include <expected>
 #include <fstream>
@@ -20,8 +21,11 @@ std::expected<Config, std::string> read(const char *fName)
             return std::unexpected("File not found.");
         nlohmann::json json;
         in >> json;
-        in.close();
-        return json.get<Config>();
+        Config config;
+
+        jsonser::Deserialize::fromJson(json, config);
+
+        return config;
     }
     catch (const std::exception &e)
     {
