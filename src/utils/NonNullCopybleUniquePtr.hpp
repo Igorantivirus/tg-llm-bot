@@ -3,6 +3,8 @@
 #include <concepts>
 #include <stdexcept>
 
+#include <utils/Jsonser.hpp>
+
 namespace utils
 {
 
@@ -93,8 +95,19 @@ public:
         return ptr_;
     }
 
+    template <jsonser::BasicJson J, typename Type>
+    friend void to_json(J &j, const NonNullCopybleUniquePtr<Type> &ptr)
+    {
+        jsonser::Serialize::toJson<J, Type>(j, ptr.get());
+    }
+    template <jsonser::BasicJson J, typename Type>
+    friend void from_json(const J &j, NonNullCopybleUniquePtr<Type> &ptr)
+    {
+        jsonser::Deserialize::fromJson<J, Type>(j, ptr.get());
+    }
+
 private:
-    T *ptr_;
+    T *ptr_;\
 
 private:
     static void checkNullable(const NonNullCopybleUniquePtr<T> *self)
