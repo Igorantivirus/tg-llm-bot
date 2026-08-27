@@ -29,14 +29,22 @@ public:
 
     void run()
     {
-        TgBot::TgLongPoll poll(bot_);
-        poll.startLoop();
+        poll_.emplace(bot_);
+        poll_->startLoop();
+    }
+
+    void stop()
+    {
+        if (poll_)
+            poll_->stop();
     }
 
 private:
     TgBot::Bot              bot_;
     BotMessageSener         sender_;
     openai::ChatsProcessor &processor_;
+
+    std::optional<TgBot::TgLongPoll> poll_;
 
 private:
     void initHendlers()
