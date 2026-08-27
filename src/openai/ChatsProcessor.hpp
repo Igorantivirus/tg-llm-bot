@@ -168,15 +168,13 @@ private:
         while (next && next.value())
         {
             auto dto = next.value().value();
-
             messageAccum += extractContentFromDelta(dto);
             if (messageAccum.size() >= lastSizeAccum + criticalMass) // добавилось больше, чем критическая масса
             {
                 nextMessageToUser(messageAccum, chatId, msgIdOpt);
                 lastSizeAccum = messageAccum.size();
             }
-
-            next = next = co_await gen.next();
+            next = co_await gen.next();
         }
         if (messageAccum.size() > lastSizeAccum)
             nextMessageToUser(std::move(messageAccum), chatId, msgIdOpt);
@@ -193,7 +191,7 @@ private:
             return "";
 
         const dto::Choice &ch = dto.choices[0];
-        if (!ch.delta || !ch.delta->role || !ch.delta->content) // пустое сообщение // TODO: Когда будут tools - сделать обработку вызовов
+        if (!ch.delta || !ch.delta->content) // пустое сообщение // TODO: Когда будут tools - сделать обработку вызовов
             return "";
         return *ch.delta->content;
     }
@@ -209,7 +207,7 @@ private:
             req.messages.push_back(dto::Message{.role = dto::Role::system, .content = std::move(setts.systemPromt)});
         req.messages.insert(req.messages.end(), std::make_move_iterator(pr.begin()), std::make_move_iterator(pr.end()));
         req.model = std::move(setts.model);
-        req.stream = false;
+        req.stream = true;
     }
 };
 

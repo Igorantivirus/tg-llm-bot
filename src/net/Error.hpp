@@ -19,6 +19,7 @@ enum class Error : std::uint8_t
     ReadBody,
     ReadChunk,
     Beast,
+    InvalidSseFragment,
     Unknown
 };
 
@@ -56,6 +57,7 @@ private:
         "Read full body",
         "Read next chunk",
         "Boost::Beast",
+        "Invalid fragment in sse protocol",
         "Unknown"};
 };
 

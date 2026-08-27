@@ -1,11 +1,11 @@
 #pragma once
 
+#include <optional>
+
 #include <dto/ChatCompletionsResponse.hpp>
 #include <dto/Parser.hpp>
-#include <net/HttpStream.hpp>
-
-#include "Error.hpp"
-#include "utils/Types.hpp"
+#include <net/SseParser.hpp>
+#include <utils/Types.hpp>
 
 namespace openai
 {
@@ -16,19 +16,14 @@ class ApiResponseGenerator
 
 private:
     ApiResponseGenerator(net::HttpStream &http)
-        : httpPtr_(&http)
+        : parser_(http)
     {
     }
 
 public:
-    ~ApiResponseGenerator()
-    {
-        close();
-    }
-
     bool isValid()
     {
-        return httpPtr_;
+        return parser_.isValid();
     }
 
     utils::AsyncResult<std::optional<dto::ChatCompletionsResponse>> next()
@@ -36,27 +31,16 @@ public:
         if (!isValid())
             co_return std::nullopt;
 
-        auto nextChunk = co_await httpPtr_->nextChunk();
+        auto nextChunk = co_await parser_.next();
         if (!nextChunk)
             co_return std::unexpected(nextChunk.error());
         auto bodyOpt = nextChunk.value();
         if (!bodyOpt)
             co_return std::nullopt;
 
-        std::string body = std::move(bodyOpt.value());
+        std::string body = std::move(bodyOpt.value()); // Полностью следующий фрагмент
 
-        if (!body.starts_with("data: "))
-        {
-            close();
-            co_return std::unexpected(Error::InvalidResponse);
-        }
-        if (body == "data: [DONE]")
-        {
-            close();
-            co_return std::nullopt;
-        }
-
-        auto parsed = dto::deserialize<dto::ChatCompletionsResponse>(std::string_view(body.begin() + 6, body.end()));
+        auto parsed = dto::deserialize<dto::ChatCompletionsResponse>(body);
         if (!parsed)
             co_return std::unexpected(parsed.error());
 
@@ -64,12 +48,6 @@ public:
     }
 
 private:
-    net::HttpStream *httpPtr_;
-
-private:
-    void close()
-    {
-        httpPtr_ = nullptr;
-    }
+    net::SseParser parser_;
 };
 } // namespace openai
