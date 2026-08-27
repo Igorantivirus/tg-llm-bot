@@ -202,7 +202,7 @@ private:
         else if constexpr (Deserializeable<J, T>)
             deserializableFromJson<J, T>(j, v);
         else
-            static_assert(false, "Type must be enum|optional|struct or must have from_json function.");
+            throw std::logic_error("Type must be enum|optional|struct or must have from_json function.");
     }
     template <BasicJson J, typename T>
     static constexpr void fromJsonWithName(const J &j, const std::string_view sv, T &v, T &def, const DeserializeSettings &setts)
@@ -306,7 +306,7 @@ private:
         else if constexpr (AgregatStructure<T>)
             structToJson<J, T>(j, v, setts);
         else
-            static_assert(false, "Type must be enum|optional|struct or must have from_json function.");
+            throw std::logic_error("Type must be enum|optional|struct or must have from_json function.");
     }
     template <BasicJson J, Optional O>
     static constexpr void optionalToJsonWithName(J &j, const std::string_view sv, const O &o, const SerializeSettings &setts)
