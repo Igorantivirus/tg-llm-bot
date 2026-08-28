@@ -25,7 +25,7 @@ public:
         std::string filePath = "https://api.telegram.org/file/bot" + token_ + '/' + *fileInfo->filePath;
 
         std::string binImg = api_.downloadFile(filePath);
-        auto        encodeRes = utils::Base64::encode(binImg);
+        auto        encodeRes  = utils::Base64::encode(binImg);
         if (!encodeRes)
             return std::unexpected(encodeRes.error());
 
