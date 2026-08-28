@@ -1,5 +1,6 @@
 #pragma once
 
+#include <boost/asio/executor.hpp>
 #include <tgbot/Types.h>
 
 #include <openai/ChatsProcessor.hpp>
@@ -10,7 +11,7 @@ namespace coords
 class MessageCoordinator
 {
 public:
-    MessageCoordinator(openai::MessageSender &sender, openai::ChatsProcessor &processor)
+    MessageCoordinator(asio::any_io_executor ex, openai::MessageSender &sender, openai::ChatsProcessor &processor)
         : sender_(sender), processor_(processor)
     {
     }
