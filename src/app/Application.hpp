@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bot/BotMessageSener.hpp"
 #include <cstdlib>
 #include <optional>
 #include <stop_token>
@@ -7,6 +8,8 @@
 
 #include <bot/Bot.hpp>
 #include <config/AppConfig.hpp>
+#include <coords/CommandCoordinator.hpp>
+#include <coords/MessageCoordinator.hpp>
 #include <net/Types.hpp>
 #include <openai/ChatsProcessor.hpp>
 #include <utils/MethodBinder.hpp>
@@ -18,8 +21,10 @@ class Application
 public:
     Application(config::AppConfig cnfg)
         : io_(),
-          chat_(io_.get_executor(), cnfg.openAiUrl.host, cnfg.openAiUrl.port),
-          bot_(cnfg.token, chat_)
+          cmdCoorder_(sender_, processor_),
+          msgCoorder_(sender_, processor_),
+          processor_(io_.get_executor(), cnfg.openAiUrl.host, cnfg.openAiUrl.port),
+          bot_(cnfg.token, processor_, sender_, cmdCoorder_, msgCoorder_)
     {
     }
 
@@ -27,7 +32,7 @@ public:
     {
         ioThread_.emplace(utils::buildMethod(&Application::ioMain, this));
 
-        chat_.initModels();
+        processor_.initModels();
 
         try
         {
@@ -49,8 +54,12 @@ public:
 private:
     std::optional<std::jthread> ioThread_;
     asio::io_context            io_;
-    openai::ChatsProcessor      chat_;
-    bot::Bot                    bot_;
+
+    openai::ChatsProcessor     processor_;
+    bot::BotMessageSener       sender_;
+    coords::CommandCoordinator cmdCoorder_;
+    coords::MessageCoordinator msgCoorder_;
+    bot::Bot                   bot_;
 
 private:
     void ioMain(std::stop_token iot)
