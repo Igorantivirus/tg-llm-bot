@@ -22,6 +22,7 @@ set(INCLUDE_DIRRECTORIES
 # =================================================== #
 
 include(cmake/FindBoost.cmake)
+find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
 find_package(TgBot REQUIRED)
 
@@ -45,6 +46,8 @@ target_link_libraries(${EXECUTABLE_NAME} PUBLIC
     Boost::headers
     Threads::Threads
     TgBot::TgBot
+    OpenSSL::SSL
+    OpenSSL::Crypto
 )
 
 target_include_directories(${EXECUTABLE_NAME} PUBLIC ${INCLUDE_DIRRECTORIES})
