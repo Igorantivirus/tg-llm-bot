@@ -9,7 +9,7 @@
 
 namespace bot
 {
-using ArgsType = std::span<std::string_view>;
+using ArgsType = std::vector<std::string>;
 
 template <class Class>
 class CommandRegistrator
@@ -27,7 +27,9 @@ public:
     {
         bot_.getEvents().onCommand(command, [command, this, method, countArgsMin, countArgsMax, perm](std::shared_ptr<TgBot::Message> msg)
         {
-            auto args = utils::StringUtils::splitArgs(msg->text.value());
+            if (msg->chat->type != TgBot::Chat::Type::Private)
+                return;
+            auto args = utils::StringUtils::splitArgs<std::string>(msg->text.value());
             if (args.size() < countArgsMin + 1 || args.size() > countArgsMax + 1)
             {
                 sender_.sendMessage(msg->chat->id, "Ошибка. Команда \"" + command + "\" Должна принимать от" + std::to_string(countArgsMin) + " до " + std::to_string(countArgsMax) + " аргументов.");
@@ -41,7 +43,9 @@ public:
     {
         bot_.getEvents().onCommand(command, [command, this, method, countArgs, perm](std::shared_ptr<TgBot::Message> msg)
         {
-            auto args = utils::StringUtils::splitArgs(msg->text.value());
+            if (msg->chat->type != TgBot::Chat::Type::Private)
+                return;
+            auto args = utils::StringUtils::splitArgs<std::string>(msg->text.value());
             if (args.size() != countArgs + 1)
             {
                 sender_.sendMessage(msg->chat->id, "Ошибка. Команда \"" + command + "\" Должна принимать " + std::to_string(countArgs) + " аргументов.");
@@ -55,6 +59,8 @@ public:
     {
         bot_.getEvents().onCommand(command, [this, method, perm](std::shared_ptr<TgBot::Message> msg)
         {
+            if (msg->chat->type != TgBot::Chat::Type::Private)
+                return;
             // TODO: check admin permissions
 
             (object_.*method)(msg->chat->id);
