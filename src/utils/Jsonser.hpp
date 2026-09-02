@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <nlohmann/adl_serializer.hpp>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 #include <type_traits>
 #include <utility>
@@ -342,7 +343,7 @@ private:
     {
         auto name = magic_enum::enum_name(e);
         if (name.empty())
-            throw std::logic_error("Enum value is out of magic_enum support range.");
+            throw std::logic_error(std::string("Enum value is out of magic_enum support range. EnumType: ") + typeid(E).name() + ". EnumValue: " + std::to_string(static_cast<int>(e)));
         j = name;
     }
     template <BasicJson J, typename D>
