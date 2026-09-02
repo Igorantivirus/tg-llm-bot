@@ -1,10 +1,8 @@
 #pragma once
 
-#include <boost/system/detail/error_code.hpp>
-#include <expected>
-#include <optional>
-
 #include <utils/MethodBinder.hpp>
+#include <utils/NoMovable.hpp>
+#include <utils/StreamGenerator.hpp>
 #include <utils/Types.hpp>
 
 #include "BusyGuard.hpp"
@@ -15,7 +13,7 @@
 namespace net
 {
 
-class HttpStream
+class HttpStream : public utils::StreamGenerator<std::string>, public utils::NoMovable
 {
 public:
     struct Response
@@ -25,8 +23,6 @@ public:
     };
 
 public:
-#pragma region initialize + destruct
-
     HttpStream(asio::any_io_executor ex, HttpSettings setts = {})
         : stream_(std::move(ex)),
           setts_(std::move(setts)),
@@ -41,14 +37,6 @@ public:
         if (parser_)
             parser_.reset();
     }
-    HttpStream(const HttpStream &) = delete;
-    HttpStream(HttpStream &&) = delete;
-    HttpStream &operator=(const HttpStream &) = delete;
-    HttpStream &operator=(HttpStream &&) = delete;
-
-#pragma endregion
-
-#pragma region sync
 
     bool setSettings(HttpSettings setts)
     {
@@ -58,17 +46,13 @@ public:
         return true;
     }
 
-    void close()
+    void close() override
     {
         if (busy_)
             stream_.close();
         else
-            fullReset();
+            reset();
     }
-
-#pragma endregion
-
-#pragma region async
 
     template <typename F = decltype(nullptr)>
     utils::AsyncResult<Response> request(const std::string_view host, const std::string_view port, BeastRequest req, F socketConfigurator = nullptr)
@@ -76,7 +60,7 @@ public:
         if (busy_)
             co_return std::unexpected(Error::Busy);
         details::BusyGuard bg(busy_);
-        fullReset();
+        reset();
 
         // connect
         if (auto resolveRes = co_await resolve(stream_.get_executor(), host, port, setts_.timeout.resolve); resolveRes)
@@ -111,31 +95,7 @@ public:
         co_return Response{.header = parser_->get().base(), .body = std::nullopt}; // Дальше чтение чанково
     }
 
-    utils::AsyncResult<std::optional<std::string>> nextChunk()
-    {
-        if (busy_)
-            co_return std::unexpected(Error::Busy);
-        details::BusyGuard bg(busy_);
-        while (reading_)
-        {
-            setTimeOut(setts_.timeout.chunk);
-            [[maybe_unused]] const auto [err, bytesRead] = co_await http::async_read_some(stream_, buffer_, *parser_, asio::as_tuple(asio::use_awaitable));
-            if (err == http::error::end_of_chunk)
-                co_return std::move(chunk_);
-            if (err)
-            {
-                fullReset();
-                co_return std::unexpected(Error::ReadChunk);
-            }
-            if (parser_->is_done())
-                fullReset();
-        }
-        co_return std::nullopt;
-    }
-
-#pragma endregion
-
-private:
+private: // Поля
     beast::tcp_stream                                             stream_;
     std::optional<http::response_parser<beast::http::empty_body>> parser_;
     boost::beast::flat_buffer                                     buffer_;
@@ -152,9 +112,7 @@ private:
     std::function<std::size_t(std::uint64_t, std::string_view, boost::beast::error_code &)> chunkCb_;
     std::function<void(std::uint64_t, std::string_view, boost::beast::error_code &)>        headerCb_;
 
-private:
-#pragma region private
-
+private: // Колбеки
     std::size_t chunkCb(std::uint64_t remain, std::string_view body, boost::beast::error_code &ec)
     {
         ec = {};
@@ -187,8 +145,30 @@ private:
         chunk_.reserve(static_cast<std::size_t>(size));
     }
 
-    void fullReset()
+private: // Действия
+    utils::AsyncResult<std::string> nextImpl() override
     {
+        if (busy_)
+            co_return std::unexpected(Error::Busy);
+        details::BusyGuard bg(busy_);
+        while (reading_)
+        {
+            setTimeOut(setts_.timeout.chunk);
+            [[maybe_unused]] const auto [err, bytesRead] = co_await http::async_read_some(stream_, buffer_, *parser_, asio::as_tuple(asio::use_awaitable));
+            if (err == http::error::end_of_chunk)
+                co_return std::move(chunk_);
+            if (err)
+                co_return std::unexpected(Error::ReadChunk);
+            if (parser_->is_done())
+                co_return std::unexpected(endOfStream);
+        }
+        co_return std::unexpected(endOfStream);
+    }
+
+    void reset() override
+    {
+        utils::StreamGenerator<std::string>::reset();
+        // reset полей
         reading_ = false;
         chunkCount_ = 0;
         chunkTotal_ = 0;
@@ -199,11 +179,7 @@ private:
 
         stream_.close();
 
-        resetParser();
-    }
-
-    void resetParser()
-    {
+        // ресет парсера
         parser_.emplace();
         parser_->on_chunk_body(chunkCb_);
         parser_->on_chunk_header(headerCb_);
@@ -231,8 +207,6 @@ private:
         else
             stream_.expires_after(dur);
     }
-
-#pragma endregion
 
 private:
     static utils::AsyncResult<asio::ip::basic_resolver_results<tcp>> resolve(asio::any_io_executor ex, const std::string_view host, const std::string_view port, const std::chrono::steady_clock::duration timeout)
