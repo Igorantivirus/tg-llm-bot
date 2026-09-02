@@ -1,14 +1,14 @@
 #pragma once
 
-#include <dto/ChatCompletionsRequest.hpp>
-#include <dto/ChatCompletionsResponse.hpp>
+#include <dto/ChatCompletions/Request.hpp>
+#include <dto/ChatCompletions/Response.hpp>
 #include <dto/ModelsResponse.hpp>
 #include <dto/Parser.hpp>
 #include <net/HttpStream.hpp>
 #include <utils/Types.hpp>
 
 #include "ApiResponseGenerator.hpp"
-#include "Error.hpp"
+#include <openai/Error.hpp>
 
 namespace openai
 {
@@ -16,7 +16,7 @@ namespace openai
 class Api
 {
 public:
-    Api(asio::any_io_executor ex, std::string host, std::string port, std::string token = {})
+    Api(asio::any_io_executor ex, std::string host, std::string port, std::string token)
         : http_(ex),
           fullHost_(isNum(port) ? host + ':' + port : host),
           host_(std::move(host)),
@@ -41,8 +41,7 @@ public:
         co_return dto::deserialize<dto::ModelsResponse>(*resp.body);
     }
 
-    using ResponseVariant = std::variant<dto::ChatCompletionsResponse, ApiResponseGenerator>;
-    utils::AsyncResult<ResponseVariant> chatCompletions(dto::ChatCompletionsRequest dto)
+    utils::AsyncResult<ApiResponseGenerator> chatCompletions(dto::ChatCompletionsRequest dto)
     {
         net::BeastRequest req(http::verb::post, "/v1/chat/completions", 11);
         if (auto sdto = dto::serialize(dto); sdto)
@@ -55,12 +54,16 @@ public:
         if (!res)
             co_return std::unexpected(res.error());
         auto resp = res.value();
-        if(resp.header.result_int() / 100 != 2)
+        if (resp.header.result_int() / 100 != 2)
             co_return std::unexpected(Error::FromServer);
 
-        if (resp.body)
-            co_return dto::deserialize<dto::ChatCompletionsResponse>(*resp.body);
-
+        if (resp.body) // Тело сразу есть
+        {
+            auto resDto = dto::deserialize<dto::ChatCompletionsResponse>(*resp.body);
+            if (!resDto)
+                co_return std::unexpected(resDto.error());
+            co_return ApiResponseGenerator(std::move(resDto.value()));
+        }
         co_return ApiResponseGenerator{http_};
     }
 
