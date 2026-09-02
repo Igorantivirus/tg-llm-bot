@@ -2,8 +2,10 @@
 
 #include <array>
 #include <cstddef>
+#include <optional>
 #include <string_view>
 
+#include <utils/StreamGenerator.hpp>
 #include <utils/StringUtils.hpp>
 #include <utils/Types.hpp>
 
@@ -12,8 +14,21 @@
 
 namespace net
 {
-class SseParser
+class SseParser : public utils::StreamGenerator<std::string>
 {
+public:
+    SseParser(std::nullopt_t)
+    {
+    }
+    SseParser(HttpStream &stream)
+        : stream_(&stream)
+    {
+    }
+
+private:
+    HttpStream *stream_ = nullptr;
+    std::string buffer_;
+
 private:
     enum class NextFragmentRes : std::uint8_t
     {
@@ -23,75 +38,43 @@ private:
         Invalid
     };
 
-public:
-    SseParser(HttpStream &stream)
-        : stream_(&stream)
-    {
-    }
-
-    bool isValid()
+private:
+    bool isReady() const override
     {
         return stream_;
     }
-
-    utils::AsyncResult<std::optional<std::string>> next()
-    {
-        if (!isValid())
-            co_return std::nullopt;
-
-        std::pair<std::string, NextFragmentRes> fragPair;
-
-        while ((fragPair = tryFindFragment()), fragPair.second == NextFragmentRes::NotFount) // Пока не удалось найти - ищем
-        {
-            // Чтение фрагмента
-            auto nextChunk = co_await stream_->nextChunk();
-            if (!nextChunk)
-            {
-                close(); // Ошибка сети, дальше не имеет смысла читать, следующий запрос вернёт nullopt
-                co_return std::unexpected(nextChunk.error());
-            }
-            auto bodyOpt = nextChunk.value();
-            if (!bodyOpt)
-            {
-                close(); // Итерация не нашла фрагмента, а следующий фрагмент оказался концом чтения - пора закрываться
-                co_return std::nullopt;
-            }
-            buffer_ += std::move(bodyOpt.value()); // Читаем фрагмент
-        }
-        if (fragPair.second == NextFragmentRes::End) // Дошли до конца, говорим, что данных больше нет
-        {
-            std::ignore = co_await readToTheEnd(); // Дочитаем до конца
-            co_return std::nullopt;
-        }
-        if (fragPair.second == NextFragmentRes::Data) // Нашли данные - возвращаем
-            co_return fragPair.first;
-        // Тут инвалидные данные - кинем ошибку, но данные дальше читать можно, следующиый вызов может дать их
-        co_return std::unexpected(Error::InvalidSseFragment);
-    }
-
-private:
-    HttpStream *stream_;
-    std::string buffer_;
-
-private:
-    void close()
+    void close() override
     {
         stream_ = nullptr;
         buffer_.clear();
     }
 
+    utils::AsyncResult<std::string> nextImpl() override
+    {
+        std::pair<std::string, NextFragmentRes> fragPair;
+
+        while ((fragPair = tryFindFragment()), fragPair.second == NextFragmentRes::NotFount) // Пока не удалось найти - ищем
+        {
+            // Чтение фрагмента
+            auto nextChunk = co_await stream_->next();
+            if (!nextChunk)
+                co_return std::unexpected(nextChunk.error());
+            buffer_ += std::move(nextChunk.value()); // Читаем фрагмент
+        }
+        if (fragPair.second == NextFragmentRes::End) // Дошли до конца, говорим, что данных больше нет
+            co_return (std::ignore = co_await readToTheEnd()), endOfStream;
+        if (fragPair.second == NextFragmentRes::Data) // Нашли данные - возвращаем
+            co_return fragPair.first;
+        // Тут инвалидные данные
+        co_return std::unexpected(Error::InvalidSseFragment);
+    }
+
     // Если после "data: [DONE]" остались данные, чтоб сервер не подумал, что мы просто оборвали соединение - дочитаем вс до конца
     utils::AsyncResult<void> readToTheEnd()
     {
-        do
-        {
-            auto next = co_await stream_->nextChunk();
-            if (!next || !next.value()) // Если ошибка - без разницы, мы-то свой конец прочитали штатно.
-            {
-                close();
-                co_return utils::empty;
-            }
-        } while (true);
+        while (auto next = co_await stream_->next())
+            ; // Даже если ошибка - плевать, мы свой конец прочитали штатно, поэтому просто читаем
+        co_return utils::empty;
     }
 
     std::pair<std::string, NextFragmentRes> tryFindFragment()
