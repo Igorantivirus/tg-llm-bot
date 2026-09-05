@@ -3,6 +3,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace utils
 {
@@ -16,9 +17,9 @@ public:
         size_t      pos = 0;
         size_t      next;
 
-        std::tuple<Args...> tup(std::forward<Args>(args)...);
-        constexpr size_t    N = sizeof...(Args);
-        size_t              idx = 0;
+        const std::vector<std::string> values{to_string_impl(std::forward<Args>(args))...};
+        const size_t                   N = values.size();
+        size_t                         idx = 0;
 
         // последовательно ищем все "{}"
         while ((next = fmt.find("{}", pos)) != std::string::npos)
@@ -26,7 +27,7 @@ public:
             result += fmt.substr(pos, next - pos); // добавляем текст до маркера
             if (idx >= N)
                 throw std::runtime_error("format: not enough arguments");
-            result += to_string_impl(std::get<idx>(tup)); // подставляем аргумент
+            result += values[idx]; // подставляем аргумент
             ++idx;
             pos = next + 2; // пропускаем "{}"
         }
