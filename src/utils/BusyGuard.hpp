@@ -1,6 +1,6 @@
 #pragma once
 
-namespace net::details
+namespace utils
 {
 class BusyGuard
 {
@@ -8,6 +8,7 @@ public:
     BusyGuard(bool &busy)
         : busy_(&busy)
     {
+        *busy_ = true;
     }
     ~BusyGuard()
     {
@@ -23,4 +24,4 @@ public:
 private:
     bool *busy_;
 };
-} // namespace net::details
+} // namespace utils
