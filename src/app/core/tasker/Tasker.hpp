@@ -5,6 +5,7 @@
 #include <utils/StreamGenerator.hpp>
 
 #include <app/core/Error.hpp>
+#include <app/core/Presentation/InfoType.hpp>
 #include <app/core/Presentation/Presenter.hpp>
 #include <app/core/tasker/Registration.hpp>
 #include <app/core/tasker/StopableGenerator.hpp>
@@ -29,7 +30,16 @@ public:
 
     asio::awaitable<void> setSystem(OperationInfo::Ptr info, std::string system)
     {
-        proc_.settings().repo().setSystem(info->getChatId(), std::move(system));
+        if (system == "-")
+        {
+            proc_.settings().repo().setSystem(info->getChatId(), "");
+            co_await presenter_.presentInfo(std::move(info), InfoType::SystemPromtDropped);
+        }
+        else
+        {
+            proc_.settings().repo().setSystem(info->getChatId(), std::move(system));
+            co_await presenter_.presentInfo(std::move(info), InfoType::SystemPromtChanged);
+        }
         co_return;
     }
 
@@ -42,6 +52,7 @@ public:
     asio::awaitable<void> clear(OperationInfo::Ptr info)
     {
         proc_.settings().repo().clearHostory(info->getChatId());
+        co_await presenter_.presentInfo(std::move(info), InfoType::ContextCleared);
         co_return;
     }
 
@@ -59,7 +70,7 @@ public:
     asio::awaitable<void> setModel(OperationInfo::Ptr info, std::string model)
     {
         if (!proc_.settings().models().contains(model))
-            co_await presenter_.presentError(std::move(info), Error::ModelOutOfRange);
+            co_await presenter_.presentInfo(std::move(info), InfoType::ModelNotSetedNoExist);
         else
             proc_.settings().repo().setModel(info->getChatId(), std::move(model));
         co_return;
