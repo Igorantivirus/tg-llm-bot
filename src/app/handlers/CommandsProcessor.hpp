@@ -93,6 +93,14 @@ public:
     }
 
 private:
+    core::Operator                &operator_;
+    permissions::Editor           &editor_;
+    permissions::ReadWriter       &readwriter_;
+    transport::TgBotMessageSender &sender_;
+
+    config::Locale locale_;
+
+private:
     using EditMethod = bool (permissions::Editor::*)(const app::UserId);
 
     boost::asio::awaitable<void> applyEdit(std::vector<std::string> args, TgBot::Message::Ptr msg, EditMethod method, std::optional<app::UserId> defaultId = std::nullopt, const bool allowReply = true)
@@ -128,19 +136,12 @@ private:
         co_return;
     }
 
+private:
     static std::optional<app::UserId> getReplyUserId(const TgBot::Message::Ptr &msg)
     {
         if (!msg->replyToMessage || !msg->replyToMessage->from)
             return std::nullopt;
         return msg->replyToMessage->from->id;
     }
-
-private:
-    core::Operator                &operator_;
-    permissions::Editor           &editor_;
-    permissions::ReadWriter       &readwriter_;
-    transport::TgBotMessageSender &sender_;
-
-    config::Locale locale_;
 };
 } // namespace handlers

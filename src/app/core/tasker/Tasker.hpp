@@ -1,8 +1,10 @@
 #pragma once
 
+#include <boost/system/detail/error_code.hpp>
 #include <openai/ChatsProcessor.hpp>
 #include <utils/StreamGenerator.hpp>
 
+#include <app/core/Error.hpp>
 #include <app/core/Presentation/Presenter.hpp>
 #include <app/core/tasker/Registration.hpp>
 #include <app/core/tasker/StopableGenerator.hpp>
@@ -56,7 +58,10 @@ public:
 
     asio::awaitable<void> setModel(OperationInfo::Ptr info, std::string model)
     {
-        proc_.settings().repo().setModel(info->getChatId(), std::move(model));
+        if (!proc_.settings().models().contains(model))
+            co_await presenter_.presentError(std::move(info), Error::ModelOutOfRange);
+        else
+            proc_.settings().repo().setModel(info->getChatId(), std::move(model));
         co_return;
     }
 

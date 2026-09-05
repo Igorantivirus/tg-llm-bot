@@ -55,7 +55,6 @@ public:
     {
         permReadWriter_.read();
         asio::co_spawn(io_.get_executor(), proc_.initModels(), asio::detached);
-        bot::CommandsRegistrator::registerCommands(bot_.getApi(), config.commands);
     }
 
     int run()

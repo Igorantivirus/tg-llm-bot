@@ -34,6 +34,8 @@ public:
 
     void initHandlers(config::AllCommands cmnds)
     {
+        registerCommands(bot_.getApi(), cmnds);
+
         reg_.registrateCommand(cmnds.clear.command, &handlers::CommandsProcessor::clearCommand, &PermissionChecker::checkBaseCommand, {0, 0});
         reg_.registrateCommand(cmnds.stop.command, &handlers::CommandsProcessor::stopCommand, &PermissionChecker::checkBaseCommand, {0, 0});
         reg_.registrateCommand(cmnds.stop_all.command, &handlers::CommandsProcessor::stopAllCommand, &PermissionChecker::checkBaseCommand, {0, 0});
@@ -60,6 +62,34 @@ private:
     EventRegistrator &reg_;
 
     std::optional<TgBot::TgLongPoll> poll_;
+
+private:
+    static void registerCommands(const TgBot::Api &api, const config::AllCommands &config)
+    {
+        std::vector<TgBot::BotCommand::Ptr> commands;
+        for (const config::Command *ptr = &config.clear; ptr <= &config.remove_chat; ++ptr)
+            commands.push_back(makeCommand(*ptr));
+        api.setMyCommands(commands);
+        try
+        {
+        }
+        catch (const TgBot::TgException &e)
+        {
+            std::cerr << "TgBot registerCommands error: " << e.what() << '\n';
+        }
+        catch (...)
+        {
+            std::cerr << "TgBot registerCommands unknown error.";
+        }
+    }
+
+    static TgBot::BotCommand::Ptr makeCommand(config::Command cmnd)
+    {
+        auto c = std::make_shared<TgBot::BotCommand>();
+        c->command = std::move(cmnd.command);
+        c->description = std::move(cmnd.description);
+        return c;
+    }
 };
 
 } // namespace bot
