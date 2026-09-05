@@ -41,7 +41,7 @@ public:
     {
         if (!data_.isBanned(id))
             return false;
-        data_.data_.bannedUsers.insert(id);
+        data_.data_.bannedUsers.erase(id);
         return true;
     }
 
