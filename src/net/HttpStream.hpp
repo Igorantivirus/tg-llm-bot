@@ -1,11 +1,11 @@
 #pragma once
 
+#include <utils/BusyGuard.hpp>
 #include <utils/MethodBinder.hpp>
 #include <utils/NoMovable.hpp>
 #include <utils/StreamGenerator.hpp>
 #include <utils/Types.hpp>
 
-#include "BusyGuard.hpp"
 #include "Error.hpp"
 #include "HttpSettings.hpp"
 #include "Types.hpp"
@@ -59,7 +59,7 @@ public:
     {
         if (busy_)
             co_return std::unexpected(Error::Busy);
-        details::BusyGuard bg(busy_);
+        utils::BusyGuard bg(busy_);
         reset();
 
         // connect
@@ -150,7 +150,7 @@ private: // Действия
     {
         if (busy_)
             co_return std::unexpected(Error::Busy);
-        details::BusyGuard bg(busy_);
+        utils::BusyGuard bg(busy_);
         while (reading_)
         {
             setTimeOut(setts_.timeout.chunk);
