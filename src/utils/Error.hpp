@@ -9,12 +9,20 @@ enum class Error : std::uint8_t
     EndOfStreamData,
     TooLongDataSize,
     EncodeError,
+    JsonserSerialize,
+    JsonserDeserialize,
+    NlohmannParsing,
+    NlohmannBuild,
     Unknown
 };
 constexpr std::array<const char *, static_cast<std::size_t>(Error::Unknown) + 1> errorNames = {
     "End of data from stream",
     "Input too large for EVP_EncodeBlock",
     "EVP_EncodeBlock failed",
+    "Serialisation in jsonser",
+    "Deserialisation in jsonser",
+    "Json parsing",
+    "Building json from structure",
     "Unknown"};
 } // namespace utils
 

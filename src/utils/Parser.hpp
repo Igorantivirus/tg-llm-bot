@@ -10,7 +10,7 @@
 
 #include "Error.hpp"
 
-namespace dto
+namespace utils
 {
 
 template <typename Dto>
