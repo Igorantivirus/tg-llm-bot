@@ -1,12 +1,13 @@
 #pragma once
 
+#include <dto/ChatCompletions/Message.hpp>
 #include <dto/ChatCompletions/Request.hpp>
 #include <ranges>
 
+#include "AdditionalsToMessage.hpp"
 #include "ChatHistory.hpp"
 #include "ChatsSettings.hpp"
 #include "Types.hpp"
-#include "dto/ChatCompletions/Message.hpp"
 
 namespace openai
 {
@@ -55,6 +56,25 @@ public:
         return req;
     }
 
+    static dto::Message constructStartMessage(std::string msg, AdditionalsToMessage additionals)
+    {
+        dto::Message res;
+        res.role = dto::Role::user;
+        if (additionals.empty())
+            res.content = std::move(msg);
+        else
+        {
+            std::vector<dto::ContentPart> parts;
+            parts.reserve(additionals.sumOfDataParts() + 1);
+            parts.emplace_back(dto::TextPart{.text = std::move(msg)});
+            appendParts(parts, std::move(additionals.imagesB64), &dto::ImagePart::image_url);
+            appendParts(parts, std::move(additionals.audiosB64), &dto::AudioPart::input_audio);
+            appendParts(parts, std::move(additionals.filesB64), &dto::FilePart::file);
+        }
+
+        return res;
+    }
+
 private:
     static std::size_t getSize(const ChatHistory &history)
     {
@@ -62,6 +82,17 @@ private:
         for (const auto &frag : history.history)
             size += frag.size();
         return size + !history.system.empty();
+    }
+
+    template <typename Container, typename PartType, typename Member>
+    static void appendParts(std::vector<dto::ContentPart> &parts, Container &&container, Member PartType::*member)
+    {
+        for (auto &elem : std::forward<Container>(container))
+        {
+            PartType part;
+            part.*member = std::move(elem);
+            parts.emplace_back(std::move(part));
+        }
     }
 };
 } // namespace openai
