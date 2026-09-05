@@ -24,15 +24,11 @@ public:
     {
     }
 
-    asio::awaitable<void> onQuery(transport::Operation oper, TgBot::Message::Ptr msg, TgBot::CallbackQuery::Ptr query)
+    asio::awaitable<void> onSetModelQuery(transport::Operation oper, TgBot::Message::Ptr msg, TgBot::CallbackQuery::Ptr query)
     {
-        if (oper.type == transport::OperationType::SetMdl)
-        {
-            proc_.settings().repo().setModel(msg->chat->id, oper.data);
-            co_await sender_.answerCallBackQuery(query->id, locale_.modelSetted);
-            co_await sender_.editMessage(msg->chat->id, msg->messageId, utils::Format::format(locale_.currentModel, oper.data));
-        }
-        co_return;
+        proc_.settings().repo().setModel(msg->chat->id, oper.data);
+        co_await sender_.answerCallBackQuery(query->id, locale_.modelSetted);
+        co_await sender_.editMessage(msg->chat->id, msg->messageId, utils::Format::format(locale_.currentModel, oper.data));
     }
 
 private:

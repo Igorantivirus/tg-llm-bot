@@ -51,10 +51,10 @@ public:
         reg_.registrateCommand(cmnds.add_chat.command, &handlers::CommandsProcessor::addChat, &PermissionChecker::checkPermissionCommand, {0, 1});
         reg_.registrateCommand(cmnds.remove_chat.command, &handlers::CommandsProcessor::removeChat, &PermissionChecker::checkPermissionCommand, {0, 1});
 
+        reg_.registrateQuery(transport::OperationType::SetMdl, &handlers::QueryProcessor::onSetModelQuery, &PermissionChecker::checkBaseCommand);
+
         reg_.registrateMessageInChat(&handlers::MessagesProcessor::addMessage);
         reg_.registrateMessageAddress(&handlers::MessagesProcessor::processMessage);
-
-        reg_.registrateQuery(&handlers::QueryProcessor::onQuery);
     }
 
 private:

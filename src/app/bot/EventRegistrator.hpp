@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <unordered_map>
 
 #include <boost/asio/any_io_executor.hpp>
 #include <boost/asio/awaitable.hpp>
@@ -44,23 +45,20 @@ public:
         {
             std::vector<std::string> args = fillArgs(setts, msg->text.value());
             if (args.size() < setts.minArgsCount || args.size() > setts.maxArgsCount)
-            {
-                this->bot_.getApi().sendMessage(msg->chat->id, this->locale_.commandErrors.argumentsError);
-                return;
-            }
+                return this->bot_.getApi().sendMessage(msg->chat->id, this->locale_.commandErrors.argumentsError), void();
             if (!(this->checker_.*permission)(msg->chat->type, msg->chat->id, msg->from->id))
-            {
-                this->bot_.getApi().sendMessage(msg->chat->id, this->locale_.commandErrors.permissionError);
-                return;
-            }
+                return this->bot_.getApi().sendMessage(msg->chat->id, this->locale_.commandErrors.permissionError), void();
             boost::asio::co_spawn(this->ex_, (this->cmdProc_.*handler)(std::move(args), std::move(msg)), boost::asio::detached);
         };
         bot_.getEvents().onCommand(command, lambda);
     }
 
-    void registrateQuery(QueryHandler handler)
+    void registrateQuery(transport::OperationType oper, QueryHandler handler, Permission permission)
     {
-        auto lambda = [this, handler = std::move(handler)](TgBot::CallbackQuery::Ptr query)
+        queryPermissionByType_[oper] = std::make_pair(std::move(permission), std::move(handler));
+        if (setedQueryCallBack_)
+            return;
+        auto lambda = [this](TgBot::CallbackQuery::Ptr query)
         {
             TgBot::Message::Ptr msg;
             if (query->message)
@@ -68,18 +66,24 @@ public:
                     msg = *p;
             if (!msg)
             {
-                this->bot_.getApi().sendMessage(msg->chat->id, this->locale_.commandErrors.commandError);
+                this->bot_.getApi().answerCallbackQuery(query->id, this->locale_.commandErrors.commandError);
                 return;
             }
             auto dto = utils::deserialize<transport::Operation>(query->data.value());
             if (!dto)
-            {
-                this->bot_.getApi().sendMessage(msg->chat->id, utils::Format::format(this->locale_.error, dto.error().message()));
-                return;
-            }
-            asio::co_spawn(this->ex_, (this->queProc_.*handler)(std::move(dto.value()), std::move(msg), std::move(query)), boost::asio::detached);
+                return this->bot_.getApi().answerCallbackQuery(query->id, utils::Format::format(this->locale_.error, dto.error().message())), void();
+
+            auto found = this->queryPermissionByType_.find(dto->type);
+
+            if (found == this->queryPermissionByType_.end())
+                return this->bot_.getApi().answerCallbackQuery(query->id, this->locale_.commandErrors.commandError), void();
+            else if (!(this->checker_.*found->second.first)(msg->chat->type, msg->chat->id, query->from->id))
+                return this->bot_.getApi().answerCallbackQuery(query->id, this->locale_.commandErrors.permissionError), void();
+
+            asio::co_spawn(this->ex_, (this->queProc_.*found->second.second)(std::move(dto.value()), std::move(msg), std::move(query)), boost::asio::detached);
         };
         bot_.getEvents().onCallbackQuery(lambda);
+        setedQueryCallBack_ = true;
     }
 
     void registrateMessageAddress(MessageHandler handler)
@@ -110,6 +114,9 @@ private:
     handlers::CommandsProcessor &cmdProc_;
     handlers::MessagesProcessor &msgProc_;
     handlers::QueryProcessor    &queProc_;
+
+    std::unordered_map<transport::OperationType, std::pair<Permission, QueryHandler>> queryPermissionByType_;
+    bool                                                                              setedQueryCallBack_ = false;
 
     config::Locale locale_;
 
