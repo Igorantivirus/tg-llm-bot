@@ -28,7 +28,13 @@ public:
     boost::asio::awaitable<void> stopCommand(std::vector<std::string>, TgBot::Message::Ptr msg)
     {
         core::OperationInfo::Ptr info = std::make_shared<core::OperationInfo>(msg->chat->id);
-        co_await operator_.clear(info);
+        co_await operator_.stop(info);
+    }
+
+    boost::asio::awaitable<void> stopAllCommand(std::vector<std::string>, TgBot::Message::Ptr msg)
+    {
+        core::OperationInfo::Ptr info = std::make_shared<core::OperationInfo>(msg->chat->id);
+        co_await operator_.stopAll(info);
     }
 
     boost::asio::awaitable<void> modelsCommand(std::vector<std::string>, TgBot::Message::Ptr msg)
@@ -60,7 +66,7 @@ public:
         {
             const std::string &str = args[0];
             auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), id);
-            if (ec == std::errc())
+            if (ec != std::errc())
                 co_return (co_await sender_.sendMessage(msg->messageId, "Неверный user id."));
         }
         else
