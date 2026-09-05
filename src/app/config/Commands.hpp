@@ -16,6 +16,7 @@ struct AllCommands
     Command stop;
     Command stop_all;
     Command system;
+    Command model;
     Command models;
     Command make_admin;
     Command remove_admin;
