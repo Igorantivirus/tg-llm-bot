@@ -34,7 +34,7 @@ public:
           bot_(config.token),
           redirector_(pool_, bot_.getApi()),
           sender_(redirector_),
-          presenter_(sender_, proc_),
+          presenter_(sender_, proc_, config.locale),
 
           proc_(io_.get_executor(), config.tcpSocketsCount, config.openAiUrl.host, config.openAiUrl.port),
           operator_(presenter_, proc_),
@@ -43,13 +43,13 @@ public:
           permReadWriter_(data_, config.accessRightsFile),
           editor(data_),
 
-          cmdProc_(operator_, editor, permReadWriter_, sender_),
+          cmdProc_(operator_, editor, permReadWriter_, sender_, config.locale),
           msgProc_(operator_, redirector_),
-          queProc_(proc_, sender_),
+          queProc_(proc_, sender_, config.locale),
 
           checker_(data_),
 
-          reger_(io_.get_executor(), bot_, checker_, cmdProc_, msgProc_, queProc_),
+          reger_(io_.get_executor(), bot_, checker_, cmdProc_, msgProc_, queProc_, config.locale),
           customizer_(bot_, reger_),
           cmnds_(std::move(config.commands))
     {
@@ -102,12 +102,12 @@ private:
         }
         catch (const std::exception &er)
         {
-            // std::cout << "Error: " << er.what() << '\n';
+            std::cout << "Error: " << er.what() << '\n';
             return EXIT_FAILURE;
         }
         catch (...)
         {
-            // std::cout << "Enknown error\n";
+            std::cout << "Enknown error\n";
             return EXIT_FAILURE;
         }
     }
