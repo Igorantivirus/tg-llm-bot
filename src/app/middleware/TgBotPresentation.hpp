@@ -43,6 +43,14 @@ public:
                 });
             }
         }
+        if (gen.isError())
+        {
+            accum += "\nError: " + gen.endReason().message();
+            std::ignore = co_await redirector_.call([id = info->getChatId(), msgId = msgId, msg = &accum](const TgBot::Api &api) -> TgBot::Message::Ptr
+            {
+                return api.editMessageText(*msg, id, msgId);
+            });
+        }
         if (accum.size() != lastSize)
             std::ignore = co_await redirector_.call([id = info->getChatId(), msgId = msgId, msg = &accum](const TgBot::Api &api) -> TgBot::Message::Ptr
             {
