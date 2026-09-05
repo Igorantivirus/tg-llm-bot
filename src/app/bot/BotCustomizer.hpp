@@ -1,9 +1,10 @@
 #pragma once
 
 #include "EventRegistrator.hpp"
-#include "app/handlers/QueryProcessor.hpp"
+#include <app/config/Commands.hpp>
 #include <app/handlers/CommandsProcessor.hpp>
 #include <app/handlers/MessagesProcessor.hpp>
+#include <app/handlers/QueryProcessor.hpp>
 
 namespace bot
 {
@@ -30,14 +31,15 @@ public:
             poll_ = std::nullopt;
         }
     }
-    void initHandlers()
+
+    void initHandlers(config::AllCommands cmnds)
     {
-        reg_.registrateCommand("clear", &handlers::CommandsProcessor::clearCommand, &PermissionChecker::checkBaseCommand, {0, 0});
-        reg_.registrateCommand("stop", &handlers::CommandsProcessor::stopCommand, &PermissionChecker::checkBaseCommand, {0, 0});
-        reg_.registrateCommand("system", &handlers::CommandsProcessor::systemCommand, &PermissionChecker::checkBaseCommand, {0, 1, true});
-        reg_.registrateCommand("model", &handlers::CommandsProcessor::modelCommand, &PermissionChecker::checkBaseCommand, {1, 1});
-        reg_.registrateCommand("models", &handlers::CommandsProcessor::modelsCommand, &PermissionChecker::checkBaseCommand, {0, 0});
-        reg_.registrateCommand("make_admin", &handlers::CommandsProcessor::makeAdmin, &PermissionChecker::checkBaseCommand, {0, 1});
+        reg_.registrateCommand(cmnds.clear.command, &handlers::CommandsProcessor::clearCommand, &PermissionChecker::checkBaseCommand, {0, 0});
+        reg_.registrateCommand(cmnds.stop.command, &handlers::CommandsProcessor::stopCommand, &PermissionChecker::checkBaseCommand, {0, 0});
+        reg_.registrateCommand(cmnds.system.command, &handlers::CommandsProcessor::systemCommand, &PermissionChecker::checkBaseCommand, {0, 1, true});
+        // reg_.registrateCommand(cmnds.model.command, &handlers::CommandsProcessor::modelCommand, &PermissionChecker::checkBaseCommand, {1, 1});
+        reg_.registrateCommand(cmnds.models.command, &handlers::CommandsProcessor::modelsCommand, &PermissionChecker::checkBaseCommand, {0, 0});
+        reg_.registrateCommand(cmnds.make_admin.command, &handlers::CommandsProcessor::makeAdmin, &PermissionChecker::checkBaseCommand, {0, 1});
 
         reg_.registrateMessageInChat(&handlers::MessagesProcessor::addMessage);
         reg_.registrateMessageAddress(&handlers::MessagesProcessor::processMessage);

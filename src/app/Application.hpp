@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bot/CommandsRegistrator.hpp"
 #include "handlers/QueryProcessor.hpp"
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/thread_pool.hpp>
@@ -33,7 +34,7 @@ public:
           bot_(config.token),
           redirector_(pool_, bot_.getApi()),
           sender_(redirector_),
-          presenter_(redirector_, proc_),
+          presenter_(sender_, proc_),
 
           proc_(io_.get_executor(), config.tcpSocketsCount, config.openAiUrl.host, config.openAiUrl.port),
           operator_(presenter_, proc_),
@@ -49,11 +50,12 @@ public:
           checker_(data_),
 
           reger_(io_.get_executor(), bot_, checker_, cmdProc_, msgProc_, queProc_),
-          customizer_(bot_, reger_)
+          customizer_(bot_, reger_),
+          cmnds_(std::move(config.commands))
     {
         permReadWriter_.read();
         asio::co_spawn(io_.get_executor(), proc_.initModels(), asio::detached);
-        proc_.settings().repo().setModel(1642467431, "aboba");
+        bot::CommandsRegistrator::registerCommands(bot_.getApi(), config.commands);
     }
 
     int run()
@@ -87,12 +89,14 @@ private:
     bot::EventRegistrator  reger_;
     bot::BotCustomizer     customizer_;
 
+    config::AllCommands cmnds_;
+
 private:
     int botMain()
     {
         try
         {
-            customizer_.initHandlers();
+            customizer_.initHandlers(cmnds_);
             customizer_.run();
             return EXIT_SUCCESS;
         }

@@ -8,6 +8,7 @@
 
 #include <app/Types.hpp>
 #include <app/transport/TgBotApiRedirector.hpp>
+#include <tuple>
 
 namespace transport
 {
@@ -32,22 +33,22 @@ public:
         co_return;
     }
 
-    asio::awaitable<void> sendMessage(const app::ChatId id, std::string msg)
+    asio::awaitable<TgBot::Message::Ptr> sendMessage(const app::ChatId id, std::string msg)
     {
-        std::ignore = co_await redirector_.call([id, msg = std::move(msg)](const TgBot::Api &api) -> TgBot::Message::Ptr
+        auto res = co_await redirector_.call([id, msg = std::move(msg)](const TgBot::Api &api) -> TgBot::Message::Ptr
         {
-            return api.sendMessage(id, msg);
+            return api.sendMessage(id, msg, nullptr, nullptr, {}, "MarkdownV2");
         });
-        co_return;
+        co_return res ? res.value() : nullptr;
     }
 
-    asio::awaitable<void> editMessage(const app::ChatId chatid, const app::MessId msgId, std::string msg)
+    asio::awaitable<TgBot::Message::Ptr> editMessage(const app::ChatId chatid, const app::MessId msgId, std::string msg)
     {
-        std::ignore = co_await redirector_.call([chatid, msgId, msg = std::move(msg)](const TgBot::Api &api) -> void
+        auto res = co_await redirector_.call([chatid, msgId, msg = std::move(msg)](const TgBot::Api &api) -> TgBot::Message::Ptr
         {
-            api.editMessageText(std::move(msg), chatid, msgId, "", "", nullptr);
+            return api.editMessageText(std::move(msg), chatid, msgId, "", "", nullptr);
         });
-        co_return;
+        co_return res ? res.value() : nullptr;
     }
 
     asio::awaitable<void> answerCallBackQuery(std::string id, std::string msg)
@@ -56,6 +57,16 @@ public:
         {
             api.answerCallbackQuery(id, msg, true);
         });
+        co_return;
+    }
+
+    asio::awaitable<void> sendCommands(std::vector<TgBot::BotCommand::Ptr> commands)
+    {
+        std::ignore = co_await redirector_.call([commands = std::move(commands)](const TgBot::Api &api) -> void
+        {
+            api.setMyCommands(std::move(commands));
+        });
+        co_return;
     }
 
 private:

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Commands.hpp"
+#include "Locale.hpp"
 #include "UrlConfig.hpp"
 #include <string>
 
@@ -14,6 +16,8 @@ struct AppConfig
     std::string  accessRightsFile;
     std::uint8_t threadCount;
     std::uint8_t tcpSocketsCount;
+    AllCommands  commands;
+    Locale       locale;
 };
 
 } // namespace config
