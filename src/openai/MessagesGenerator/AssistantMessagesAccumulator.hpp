@@ -30,7 +30,7 @@ public:
         if (resp.choices.size() != 1)
             return;
         dto::Choice           choice = std::move(resp.choices[0]);
-        dto::ResponseMessage *msg = choice.message ? &(choice.message.value()) : &(choice.delta.value());
+        dto::ResponseMessage *msg = choice.message ? &(choice.message.value()) : (choice.delta ? &choice.delta.value() : nullptr);
         if (!msg)
             return;
 
@@ -70,7 +70,7 @@ public:
     {
         return accumFragment_;
     }
-    DialogFragment pullDialogFragment() const
+    DialogFragment pullDialogFragment()
     {
         return std::move(accumFragment_);
     }
@@ -106,7 +106,8 @@ private:
         msg.tool_calls = tools_ | std::views::values | std::views::filter([](const dto::ToolCall &tc) -> bool
         {
             return tc.id && tc.type && tc.function && tc.function->name && tc.function->arguments;
-        }) | std::views::as_rvalue | std::ranges::to<std::vector<dto::ToolCall>>();
+        }) | std::views::as_rvalue |
+                         std::ranges::to<std::vector<dto::ToolCall>>();
 
         clear();
         reason_ = reason;
