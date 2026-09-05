@@ -10,8 +10,8 @@ namespace openai
 class ChatsProcessor
 {
 public:
-    ChatsProcessor(asio::any_io_executor ex, std::string host, std::string port, std::string apiToken = {})
-        : api_(ex, std::move(host), std::move(port), apiToken)
+    ChatsProcessor(asio::any_io_executor ex, const std::size_t tcpConnsCount, std::string host, std::string port, std::string apiToken = {})
+        : api_(ex, tcpConnsCount, std::move(host), std::move(port), apiToken)
     {
     }
 
