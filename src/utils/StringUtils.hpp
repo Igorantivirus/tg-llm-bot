@@ -10,8 +10,10 @@ class StringUtils
 {
 public:
     template <typename String>
-    static std::vector<String> splitArgs(const std::string &str)
+    static std::vector<String> splitArgs(const std::string_view str)
     {
+        if (str.empty())
+            return {};
         std::vector<String> res;
 
         std::size_t begin = 0;
@@ -30,6 +32,13 @@ public:
         if (!isSpaceSymbol(str[begin]))
             res.push_back(String(str.begin() + begin, str.end()));
         return res;
+    }
+    static std::size_t findSpaceSymbol(const std::string_view str, const std::size_t begin = 0)
+    {
+        for (std::size_t i = begin; i < str.size(); ++i)
+            if (isSpaceSymbol(str[i]))
+                return i;
+        return std::string::npos;
     }
     inline static constexpr bool isSpaceSymbol(const char c)
     {
