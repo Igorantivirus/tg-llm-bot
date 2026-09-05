@@ -11,6 +11,8 @@
 #include <app/handlers/QueryProcessor.hpp>
 
 #include <app/bot/PermissionChecker.hpp>
+#include <app/config/Locale.hpp>
+#include <utils/Format.hpp>
 
 namespace bot
 {
@@ -30,8 +32,8 @@ public:
     };
 
 public:
-    EventRegistrator(boost::asio::any_io_executor ex, TgBot::Bot &bot, PermissionChecker checker, handlers::CommandsProcessor &cmdProc, handlers::MessagesProcessor &msgProc, handlers::QueryProcessor &queProc)
-        : ex_(ex), bot_(bot), checker_(checker), cmdProc_(cmdProc), msgProc_(msgProc), queProc_(queProc)
+    EventRegistrator(boost::asio::any_io_executor ex, TgBot::Bot &bot, PermissionChecker checker, handlers::CommandsProcessor &cmdProc, handlers::MessagesProcessor &msgProc, handlers::QueryProcessor &queProc, config::Locale locale)
+        : ex_(ex), bot_(bot), checker_(checker), cmdProc_(cmdProc), msgProc_(msgProc), queProc_(queProc), locale_(std::move(locale))
     {
         me_ = bot_.getApi().getMe()->username.value_or("");
     }
@@ -43,12 +45,12 @@ public:
             std::vector<std::string> args = fillArgs(setts, msg->text.value());
             if (args.size() < setts.minArgsCount || args.size() > setts.maxArgsCount)
             {
-                this->bot_.getApi().sendMessage(msg->chat->id, "Неверное число аргументов команды");
+                this->bot_.getApi().sendMessage(msg->chat->id, this->locale_.commandErrors.argumentsError);
                 return;
             }
             if (!(this->checker_.*permission)(msg->chat->type, msg->chat->id, msg->from->id))
             {
-                this->bot_.getApi().sendMessage(msg->chat->id, "Доступ заблокирован");
+                this->bot_.getApi().sendMessage(msg->chat->id, this->locale_.commandErrors.permissionError);
                 return;
             }
             boost::asio::co_spawn(this->ex_, (this->cmdProc_.*handler)(std::move(args), std::move(msg)), boost::asio::detached);
@@ -66,13 +68,13 @@ public:
                     msg = *p;
             if (!msg)
             {
-                this->bot_.getApi().sendMessage(msg->chat->id, "Ошибка запроса.");
+                this->bot_.getApi().sendMessage(msg->chat->id, this->locale_.commandErrors.commandError);
                 return;
             }
             auto dto = utils::deserialize<transport::Operation>(query->data.value());
             if (!dto)
             {
-                this->bot_.getApi().sendMessage(msg->chat->id, "Ошибка команды " + dto.error().message());
+                this->bot_.getApi().sendMessage(msg->chat->id, utils::Format::format(this->locale_.error, dto.error().message()));
                 return;
             }
             asio::co_spawn(this->ex_, (this->queProc_.*handler)(std::move(dto.value()), std::move(msg), std::move(query)), boost::asio::detached);
@@ -108,6 +110,8 @@ private:
     handlers::CommandsProcessor &cmdProc_;
     handlers::MessagesProcessor &msgProc_;
     handlers::QueryProcessor    &queProc_;
+
+    config::Locale locale_;
 
 private:
     static bool isAddressToMe(TgBot::Message::Ptr msg, const std::string &me)

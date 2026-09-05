@@ -6,19 +6,21 @@
 #include <tgbot/tgbot.h>
 
 #include <app/Types.hpp>
+#include <app/config/Locale.hpp>
 #include <app/core/Operator.hpp>
 #include <app/permissions/Editor.hpp>
 #include <app/permissions/ReadWriter.hpp>
 #include <app/transport/TgBotMessageSender.hpp>
 #include <app/transport/presentation/Operation.hpp>
+#include <utils/Format.hpp>
 
 namespace handlers
 {
 class QueryProcessor
 {
 public:
-    QueryProcessor(openai::ChatsProcessor &proc, transport::TgBotMessageSender &sender)
-        : proc_(proc), sender_(sender)
+    QueryProcessor(openai::ChatsProcessor &proc, transport::TgBotMessageSender &sender, config::Locale locale)
+        : proc_(proc), sender_(sender), locale_(std::move(locale))
     {
     }
 
@@ -27,8 +29,8 @@ public:
         if (oper.type == transport::OperationType::SetMdl)
         {
             proc_.settings().repo().setModel(msg->chat->id, oper.data);
-            co_await sender_.answerCallBackQuery(query->id, "Модель установлена.");
-            co_await sender_.editMessage(msg->chat->id, msg->messageId, "Текущая модель: " + oper.data);
+            co_await sender_.answerCallBackQuery(query->id, locale_.modelSetted);
+            co_await sender_.editMessage(msg->chat->id, msg->messageId, utils::Format::format(locale_.currentModel, oper.data));
         }
         co_return;
     }
@@ -36,5 +38,7 @@ public:
 private:
     openai::ChatsProcessor        &proc_;
     transport::TgBotMessageSender &sender_;
+
+    config::Locale locale_;
 };
 } // namespace handlers

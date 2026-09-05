@@ -6,18 +6,20 @@
 #include <tgbot/tgbot.h>
 
 #include <app/Types.hpp>
+#include <app/config/Locale.hpp>
 #include <app/core/Operator.hpp>
 #include <app/permissions/Editor.hpp>
 #include <app/permissions/ReadWriter.hpp>
 #include <app/transport/TgBotMessageSender.hpp>
+#include <utils/Format.hpp>
 
 namespace handlers
 {
 class CommandsProcessor
 {
 public:
-    CommandsProcessor(core::Operator &op, permissions::Editor &editor, permissions::ReadWriter &readwriter, transport::TgBotMessageSender &sender)
-        : operator_(op), editor_(editor), readwriter_(readwriter), sender_(sender)
+    CommandsProcessor(core::Operator &op, permissions::Editor &editor, permissions::ReadWriter &readwriter, transport::TgBotMessageSender &sender, config::Locale locale)
+        : operator_(op), editor_(editor), readwriter_(readwriter), sender_(sender), locale_(std::move(locale))
     {
     }
 
@@ -40,6 +42,13 @@ public:
     {
         core::OperationInfo::Ptr info = std::make_shared<core::OperationInfo>(msg->chat->id);
         co_await operator_.models(info);
+    }
+    boost::asio::awaitable<void> modelCommand(std::vector<std::string> args, TgBot::Message::Ptr msg)
+    {
+        core::OperationInfo::Ptr info = std::make_shared<core::OperationInfo>(msg->chat->id);
+        if (args.size() == 1)
+            co_await operator_.setModel(info, std::move(args[0]));
+        co_await operator_.model(info);
     }
     boost::asio::awaitable<void> systemCommand(std::vector<std::string> args, TgBot::Message::Ptr msg)
     {
@@ -94,19 +103,29 @@ private:
             const std::string &str = args[0];
             auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), id);
             if (ec != std::errc())
-                co_return (co_await sender_.sendMessage(msg->messageId, "Неверный user id."));
+            {
+                std::ignore = (co_await sender_.sendMessage(msg->messageId, locale_.commandErrors.invalidUserId));
+                co_return;
+            }
         }
         else if (auto replyId = allowReply ? getReplyUserId(msg) : std::optional<app::UserId>{})
             id = *replyId;
         else if (defaultId)
             id = *defaultId;
         else
-            co_return (co_await sender_.sendMessage(msg->messageId, "Ошибка."));
+        {
+            std::ignore = (co_await sender_.sendMessage(msg->messageId, locale_.commandErrors.argumentsError));
+            co_return;
+        }
 
         if (!(editor_.*method)(id))
-            co_return (co_await sender_.sendMessage(msg->messageId, "Ошибка"));
+        {
+            std::ignore = (co_await sender_.sendMessage(msg->messageId, locale_.commandErrors.commandError));
+            co_return;
+        }
         readwriter_.save();
-        co_return (co_await sender_.sendMessage(msg->messageId, "Успех."));
+        std::ignore = (co_await sender_.sendMessage(msg->messageId, locale_.success));
+        co_return;
     }
 
     static std::optional<app::UserId> getReplyUserId(const TgBot::Message::Ptr &msg)
@@ -121,5 +140,7 @@ private:
     permissions::Editor           &editor_;
     permissions::ReadWriter       &readwriter_;
     transport::TgBotMessageSender &sender_;
+
+    config::Locale locale_;
 };
 } // namespace handlers
