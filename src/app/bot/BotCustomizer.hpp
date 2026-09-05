@@ -1,6 +1,7 @@
 #pragma once
 
 #include "EventRegistrator.hpp"
+#include "app/handlers/QueryProcessor.hpp"
 #include <app/handlers/CommandsProcessor.hpp>
 #include <app/handlers/MessagesProcessor.hpp>
 
@@ -40,6 +41,8 @@ public:
 
         reg_.registrateMessageInChat(&handlers::MessagesProcessor::addMessage);
         reg_.registrateMessageAddress(&handlers::MessagesProcessor::processMessage);
+
+        reg_.registrateQuery(&handlers::QueryProcessor::onQuery);
     }
 
 private:

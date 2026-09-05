@@ -32,6 +32,32 @@ public:
         co_return;
     }
 
+    asio::awaitable<void> sendMessage(const app::ChatId id, std::string msg)
+    {
+        std::ignore = co_await redirector_.call([id, msg = std::move(msg)](const TgBot::Api &api) -> TgBot::Message::Ptr
+        {
+            return api.sendMessage(id, msg);
+        });
+        co_return;
+    }
+
+    asio::awaitable<void> editMessage(const app::ChatId chatid, const app::MessId msgId, std::string msg)
+    {
+        std::ignore = co_await redirector_.call([chatid, msgId, msg = std::move(msg)](const TgBot::Api &api) -> void
+        {
+            api.editMessageText(std::move(msg), chatid, msgId, "", "", nullptr);
+        });
+        co_return;
+    }
+
+    asio::awaitable<void> answerCallBackQuery(std::string id, std::string msg)
+    {
+        std::ignore = co_await redirector_.call([id = std::move(id), msg = std::move(msg)](const TgBot::Api &api) -> void
+        {
+            api.answerCallbackQuery(id, msg, true);
+        });
+    }
+
 private:
     TgBotApiRedirector &redirector_;
 };

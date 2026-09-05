@@ -1,6 +1,7 @@
 #pragma once
 
-#include <algorithm>
+#include "openai/ChatsProcessor.hpp"
+#include "presentation/KeyBoardGenerate.hpp"
 #include <string>
 
 #include <tgbot/Types.h>
@@ -13,8 +14,8 @@ namespace transport
 class TgBotPresentation : public core::Presenter
 {
 public:
-    TgBotPresentation(TgBotApiRedirector &redirector)
-        : redirector_(redirector)
+    TgBotPresentation(TgBotApiRedirector &redirector, openai::ChatsProcessor &proc)
+        : redirector_(redirector), proc_(proc)
     {
     }
 
@@ -77,14 +78,13 @@ public:
 
     asio::awaitable<void> presentModels(core::OperationInfo::Ptr info, std::unordered_set<std::string> models) override
     {
-        std::string modelsFull;
-        std::for_each_n(models.begin(), models.size(), [&modelsFull](const std::string &str)
+        auto kb = KeyBoardGenerate::generateForModels(models, info->getChatId());
+
+        std::string msg = "Текущая модель: " + proc_.settings().repo().getHistoryById(info->getChatId()).model;
+
+        std::ignore = co_await redirector_.call([id = info->getChatId(), kb = std::move(kb), msg = std::move(msg)](const TgBot::Api &api) -> void
         {
-            modelsFull += str + '\n';
-        });
-        std::ignore = co_await redirector_.call([id = info->getChatId(), modelsFull = std::move(modelsFull)](const TgBot::Api &api) -> TgBot::Message::Ptr
-        {
-            return api.sendMessage(id, "Models: " + modelsFull);
+            api.sendMessage(id, msg, nullptr, nullptr, kb);
         });
         co_return;
     }
@@ -106,8 +106,9 @@ public:
     }
 
 private:
-    TgBotApiRedirector &redirector_;
+    TgBotApiRedirector     &redirector_;
+    openai::ChatsProcessor &proc_;
 
-    std::size_t prSize_ = 100;
+    std::size_t prSize_ = 200;
 };
 } // namespace transport

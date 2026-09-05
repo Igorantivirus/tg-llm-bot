@@ -8,6 +8,7 @@
 
 #include <app/handlers/CommandsProcessor.hpp>
 #include <app/handlers/MessagesProcessor.hpp>
+#include <app/handlers/QueryProcessor.hpp>
 
 #include <app/bot/PermissionChecker.hpp>
 
@@ -18,6 +19,7 @@ class EventRegistrator
 public:
     using CommandHandler = boost::asio::awaitable<void> (handlers::CommandsProcessor::*)(std::vector<std::string>, TgBot::Message::Ptr);
     using MessageHandler = boost::asio::awaitable<void> (handlers::MessagesProcessor::*)(TgBot::Message::Ptr);
+    using QueryHandler = boost::asio::awaitable<void>   (handlers::QueryProcessor::*)(transport::Operation, TgBot::Message::Ptr, TgBot::CallbackQuery::Ptr);
     using Permission = bool                             (PermissionChecker::*)(const TgBot::Chat::Type, const app::ChatId, const app::UserId);
 
     struct CommandSettings
@@ -28,8 +30,8 @@ public:
     };
 
 public:
-    EventRegistrator(boost::asio::any_io_executor ex, TgBot::Bot &bot, PermissionChecker checker, handlers::CommandsProcessor &cmdProc, handlers::MessagesProcessor &msgProc)
-        : ex_(ex), bot_(bot), checker_(checker), cmdProc_(cmdProc), msgProc_(msgProc)
+    EventRegistrator(boost::asio::any_io_executor ex, TgBot::Bot &bot, PermissionChecker checker, handlers::CommandsProcessor &cmdProc, handlers::MessagesProcessor &msgProc, handlers::QueryProcessor &queProc)
+        : ex_(ex), bot_(bot), checker_(checker), cmdProc_(cmdProc), msgProc_(msgProc), queProc_(queProc)
     {
         me_ = bot_.getApi().getMe()->username.value_or("");
     }
@@ -52,6 +54,30 @@ public:
             boost::asio::co_spawn(this->ex_, (this->cmdProc_.*handler)(std::move(args), std::move(msg)), boost::asio::detached);
         };
         bot_.getEvents().onCommand(command, lambda);
+    }
+
+    void registrateQuery(QueryHandler handler)
+    {
+        auto lambda = [this, handler = std::move(handler)](TgBot::CallbackQuery::Ptr query)
+        {
+            TgBot::Message::Ptr msg;
+            if (query->message)
+                if (auto *p = std::get_if<TgBot::Message::Ptr>(&query->message->value))
+                    msg = *p;
+            if (!msg)
+            {
+                this->bot_.getApi().sendMessage(msg->chat->id, "Ошибка запроса.");
+                return;
+            }
+            auto dto = utils::deserialize<transport::Operation>(query->data.value());
+            if (!dto)
+            {
+                this->bot_.getApi().sendMessage(msg->chat->id, "Ошибка команды " + dto.error().message());
+                return;
+            }
+            asio::co_spawn(this->ex_, (this->queProc_.*handler)(std::move(dto.value()), std::move(msg), std::move(query)), boost::asio::detached);
+        };
+        bot_.getEvents().onCallbackQuery(lambda);
     }
 
     void registrateMessageAddress(MessageHandler handler)
@@ -81,6 +107,7 @@ private:
     PermissionChecker            checker_;
     handlers::CommandsProcessor &cmdProc_;
     handlers::MessagesProcessor &msgProc_;
+    handlers::QueryProcessor    &queProc_;
 
 private:
     static bool isAddressToMe(TgBot::Message::Ptr msg, const std::string &me)

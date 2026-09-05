@@ -1,5 +1,6 @@
 #pragma once
 
+#include "handlers/QueryProcessor.hpp"
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/thread_pool.hpp>
 
@@ -32,7 +33,7 @@ public:
           bot_(config.token),
           redirector_(pool_, bot_.getApi()),
           sender_(redirector_),
-          presenter_(redirector_),
+          presenter_(redirector_, proc_),
 
           proc_(io_.get_executor(), config.tcpSocketsCount, config.openAiUrl.host, config.openAiUrl.port),
           operator_(presenter_, proc_),
@@ -43,12 +44,12 @@ public:
 
           cmdProc_(operator_, editor, permReadWriter_, sender_),
           msgProc_(operator_, redirector_),
+          queProc_(proc_, sender_),
 
           checker_(data_),
 
-          reger_(io_.get_executor(), bot_, checker_, cmdProc_, msgProc_),
+          reger_(io_.get_executor(), bot_, checker_, cmdProc_, msgProc_, queProc_),
           customizer_(bot_, reger_)
-
     {
         permReadWriter_.read();
         asio::co_spawn(io_.get_executor(), proc_.initModels(), asio::detached);
@@ -80,6 +81,7 @@ private:
 
     handlers::CommandsProcessor cmdProc_;
     handlers::MessagesProcessor msgProc_;
+    handlers::QueryProcessor    queProc_;
 
     bot::PermissionChecker checker_;
     bot::EventRegistrator  reger_;
