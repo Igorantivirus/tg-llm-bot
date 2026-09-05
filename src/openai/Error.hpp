@@ -15,6 +15,7 @@ enum class Error : std::uint8_t
     LengthLimit,
     ToolError,
     LegacyFinishReason,
+    InvalidRequestedType,
     Unknown
 };
 constexpr const std::array<const char *, static_cast<std::size_t>(Error::Unknown) + 1> errorNames = {
@@ -27,6 +28,7 @@ constexpr const std::array<const char *, static_cast<std::size_t>(Error::Unknown
     "The communication generation limit has been exceeded",
     "Internal tool error",
     "Legacy finish reason was polled",
+    "Invalid requested type in dto::MessageResponseValue",
     "Unknown"};
 } // namespace openai
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <net/HttpClient.hpp>
+#include <utils/Parser.hpp>
 #include <utils/Types.hpp>
 
 #include <openai/Error.hpp>
@@ -8,7 +9,6 @@
 #include <openai/dto/ChatCompletions/Request.hpp>
 #include <openai/dto/ChatCompletions/Response.hpp>
 #include <openai/dto/ModelsResponse.hpp>
-#include <openai/dto/Parser.hpp>
 
 namespace openai
 {
@@ -38,13 +38,13 @@ public:
         if (resp.isStreaming())
             co_return std::unexpected(Error::EmptyModels);
 
-        co_return dto::deserialize<dto::ModelsResponse>(resp.stringBody());
+        co_return utils::deserialize<dto::ModelsResponse>(resp.stringBody());
     }
 
     utils::AsyncResult<ApiResponseGenerator> chatCompletions(dto::ChatCompletionsRequest dto)
     {
         net::BeastRequest req(http::verb::post, "/v1/chat/completions", 11);
-        if (auto sdto = dto::serialize(dto); sdto)
+        if (auto sdto = utils::serialize(dto); sdto)
             req.body() = sdto.value();
         else
             co_return std::unexpected(sdto.error());
@@ -59,7 +59,7 @@ public:
 
         if (!resp.isStreaming()) // Тело сразу есть
         {
-            auto resDto = dto::deserialize<dto::ChatCompletionsResponse>(resp.stringBody());
+            auto resDto = utils::deserialize<dto::ChatCompletionsResponse>(resp.stringBody());
             if (!resDto)
                 co_return std::unexpected(resDto.error());
             co_return ApiResponseGenerator(std::move(resDto.value()));

@@ -1,11 +1,11 @@
 #pragma once
 
 #include <net/SseStream.hpp>
+#include <utils/Parser.hpp>
 #include <utils/StreamGenerator.hpp>
 #include <utils/Types.hpp>
 
 #include <openai/dto/ChatCompletions/Response.hpp>
-#include <openai/dto/Parser.hpp>
 
 namespace openai
 {
@@ -45,7 +45,7 @@ private:
         if (!nextChunk)
             co_return std::unexpected(nextChunk.error());
         std::string body = std::move(nextChunk.value()); // Полностью следующий фрагмент
-        auto        parsed = dto::deserialize<dto::ChatCompletionsResponse>(body);
+        auto        parsed = utils::deserialize<dto::ChatCompletionsResponse>(body);
         if (!parsed)
             co_return std::unexpected(parsed.error());
         co_return parsed.value();
