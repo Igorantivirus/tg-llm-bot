@@ -1,6 +1,7 @@
 #pragma once
 
-#include "AdditionalsToMessage.hpp"
+#include "ChatsSettings/AdditionalsToMessage.hpp"
+#include "ChatsSettings/HistoryUtils.hpp"
 #include "MessagesGenerator/AssistantMessagesGenerator.hpp"
 
 namespace openai
@@ -45,45 +46,13 @@ public:
 
     utils::AsyncResult<AssistantMessagesGenerator> chatCompletions(const ChatIdType chatId, std::string msg, AdditionalsToMessage additionals = {})
     {
-        dto::Message startmsg = constructStartMessage(std::move(msg), std::move(additionals));
+        dto::Message startmsg = HistoryUtils::constructStartMessage(std::move(msg), std::move(additionals));
         co_return AssistantMessagesGenerator(api_, chatId, std::move(startmsg), setts_);
     }
 
 private:
-    Api api_;
-
+    Api           api_;
     ChatsSettings setts_;
-
-private:
-    static dto::Message constructStartMessage(std::string msg, AdditionalsToMessage additionals)
-    {
-        dto::Message res;
-        res.role = dto::Role::user;
-        if (additionals.empty())
-            res.content = std::move(msg);
-        else
-        {
-            std::vector<dto::ContentPart> parts;
-            parts.reserve(additionals.sumOfDataParts() + 1);
-            parts.emplace_back(dto::TextPart{.text = std::move(msg)});
-            appendParts(parts, std::move(additionals.imagesB64), &dto::ImagePart::image_url);
-            appendParts(parts, std::move(additionals.audiosB64), &dto::AudioPart::input_audio);
-            appendParts(parts, std::move(additionals.filesB64), &dto::FilePart::file);
-        }
-
-        return res;
-    }
-
-    template <typename Container, typename PartType, typename Member>
-    static void appendParts(std::vector<dto::ContentPart> &parts, Container &&container, Member PartType::*member)
-    {
-        for (auto &elem : std::forward<Container>(container))
-        {
-            PartType part;
-            part.*member = std::move(elem);
-            parts.emplace_back(std::move(part));
-        }
-    }
 };
 
 } // namespace openai
