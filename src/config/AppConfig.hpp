@@ -13,6 +13,7 @@ struct AppConfig
     UrlConfig    openAiUrl;
     std::string  accessRightsFile;
     std::uint8_t threadCount;
+    std::uint8_t tcpSocketsCount;
 };
 
 } // namespace config

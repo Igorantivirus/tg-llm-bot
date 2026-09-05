@@ -35,7 +35,7 @@ public:
           sender_(redirector_),
           presenter_(redirector_),
 
-          proc_(io_.get_executor(), config.openAiUrl.host, config.openAiUrl.port),
+          proc_(io_.get_executor(), config.tcpSocketsCount, config.openAiUrl.host, config.openAiUrl.port),
           operator_(presenter_, proc_),
 
           data_(),
@@ -53,7 +53,7 @@ public:
     {
         permReadWriter_.read();
         asio::co_spawn(io_.get_executor(), proc_.initModels(), asio::detached);
-        proc_.settings().repo().setModel(1642467431, "igor-ai");
+        proc_.settings().repo().setModel(1642467431, "aboba");
     }
 
     int run()
@@ -109,10 +109,8 @@ private:
 
     void ioMain(std::stop_token iot)
     {
-        while (!iot.stop_requested())
-        {
-            io_.run();
-        }
+        auto guard = asio::make_work_guard(io_);
+        io_.run();
     }
 };
 } // namespace app
