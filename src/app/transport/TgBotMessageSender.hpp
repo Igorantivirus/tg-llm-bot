@@ -1,8 +1,11 @@
 #pragma once
 
+#include "magic_enum/magic_enum.hpp"
+#include "presentation/ChatAction.hpp"
 #include <sstream>
 
 #include <boost/asio/awaitable.hpp>
+#include <string>
 #include <tgbot/Api.h>
 #include <tgbot/Types.h>
 
@@ -33,11 +36,21 @@ public:
         co_return;
     }
 
-    asio::awaitable<TgBot::Message::Ptr> sendMessage(const app::ChatId id, std::string msg)
+    asio::awaitable<void> sendAction(const app::ChatId id, transport::ChatAction act)
     {
-        auto res = co_await redirector_.call([id, msg = std::move(msg)](const TgBot::Api &api) -> TgBot::Message::Ptr
+        std::ignore = co_await redirector_.call([id, act](const TgBot::Api &api) -> void
         {
-            return api.sendMessage(id, msg, nullptr, nullptr, {}, "MarkdownV2");
+            std::string actStr(magic_enum::enum_name(act));
+            api.sendChatAction(id, actStr);
+        });
+        co_return;
+    }
+
+    asio::awaitable<TgBot::Message::Ptr> sendMessage(const app::ChatId id, std::string msg, TgBot::InlineKeyboardMarkup::Ptr kb = nullptr, bool md = false)
+    {
+        auto res = co_await redirector_.call([id, md, msg = std::move(msg), kb = std::move(kb)](const TgBot::Api &api) -> TgBot::Message::Ptr
+        {
+            return api.sendMessage(id, msg, nullptr, nullptr, kb, md ? "MarkdownV2" : "");
         });
         co_return res ? res.value() : nullptr;
     }
