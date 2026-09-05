@@ -10,24 +10,21 @@
 #include <utils/Types.hpp>
 
 #include "Error.hpp"
-#include "HttpStream.hpp"
+#include "HttpStreamReader.hpp"
 
 namespace net
 {
 class SseParser : public utils::StreamGenerator<std::string>
 {
 public:
-    SseParser(std::nullopt_t)
-    {
-    }
-    SseParser(HttpStream &stream)
-        : stream_(&stream)
+    SseParser(HttpStreamReader stream)
+        : stream_(std::move(stream))
     {
     }
 
 private:
-    HttpStream *stream_ = nullptr;
-    std::string buffer_;
+    HttpStreamReader stream_;
+    std::string      buffer_;
 
 private:
     enum class NextFragmentRes : std::uint8_t
@@ -41,11 +38,10 @@ private:
 private:
     bool isReady() const override
     {
-        return stream_;
+        return !stream_.done();
     }
     void close() override
     {
-        stream_ = nullptr;
         buffer_.clear();
     }
 
@@ -56,7 +52,7 @@ private:
         while ((fragPair = tryFindFragment()), fragPair.second == NextFragmentRes::NotFount) // Пока не удалось найти - ищем
         {
             // Чтение фрагмента
-            auto nextChunk = co_await stream_->next();
+            auto nextChunk = co_await stream_.next();
             if (!nextChunk)
                 co_return std::unexpected(nextChunk.error());
             buffer_ += std::move(nextChunk.value()); // Читаем фрагмент
@@ -72,7 +68,7 @@ private:
     // Если после "data: [DONE]" остались данные, чтоб сервер не подумал, что мы просто оборвали соединение - дочитаем вс до конца
     utils::AsyncResult<void> readToTheEnd()
     {
-        while (auto next = co_await stream_->next())
+        while (auto next = co_await stream_.next())
             ; // Даже если ошибка - плевать, мы свой конец прочитали штатно, поэтому просто читаем
         co_return utils::empty;
     }

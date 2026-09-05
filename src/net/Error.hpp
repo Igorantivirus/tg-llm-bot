@@ -15,6 +15,7 @@ enum class Error : std::uint8_t
     ReadChunk,
     Beast,
     InvalidSseFragment,
+    NoFreeConnections,
     Unknown
 };
 constexpr std::array<const char *, static_cast<std::size_t>(Error::Unknown) + 1> errorNames = {
@@ -27,6 +28,7 @@ constexpr std::array<const char *, static_cast<std::size_t>(Error::Unknown) + 1>
     "Read next chunk",
     "Boost::Beast",
     "Invalid fragment in sse protocol",
+    "No free tcp connections",
     "Unknown"};
 } // namespace net
 

@@ -96,9 +96,9 @@ public:
     }
 
 private: // Поля
-    beast::tcp_stream                                             stream_;
-    std::optional<http::response_parser<beast::http::empty_body>> parser_;
-    boost::beast::flat_buffer                                     buffer_;
+    beast::tcp_stream                                      stream_;
+    std::optional<http::response_parser<http::empty_body>> parser_;
+    boost::beast::flat_buffer                              buffer_;
 
     HttpSettings setts_;
 
