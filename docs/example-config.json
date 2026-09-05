@@ -1,14 +1,93 @@
 {
-    "token": "...",
-    "defaultModel": "gpt-4o",
+    "token": "TOCKEN",
+    "defaultModel": "igor-ai",
     "openAiUrl": {
-        "host": "openai.com",
-        "port": "https"
+        "host": "HOST",
+        "port": "PORT"
     },
-    "adminsSettings": {
-        "creator": 0,
-        "admins": [],
-        "personalChats": [],
-        "groups": []
+    "accessRightsFile": "Куда сохранять данные",
+    "threadCount": 1,
+    "tcpSocketsCount": 2,
+    "locale": {
+        "currentModel": "Текущая модель: {}",
+        "modelHelp": "Текущая модель: {}.\nВведите \"/model <название>\", чтобы поменять её. Введите \"/models\", чтобы выбрать модель из списка",
+        "systemPromt": "Текущий системный промт: \"{}\".\nВведите \"\\system <промт>\", чтобы поменять его. Введите \"\\system -\", чтоб сбросить его",
+        "cleared": "Контекст отчищен",
+        "error": "Ошибка: {}",
+        "info": "Информация: {}",
+        "thinking": "Думаю . . .",
+        "success": "Успех.",
+        "modelSetted": "Модель установлена.",
+        "commandErrors": {
+            "permissionError": "Ошибка. У вас недостаточно прав для доступа к этой команде",
+            "argumentsError": "Ошибка. Неверное число аргументов.",
+            "invalidUserId": "Ошибка. Неверный id пользователя",
+            "commandError": "Ошибка команды."
+        },
+        "infoLocale": {
+            "WaitPrevTask": "Ожидание завершения предыдущей задачи. Введите \"/stop\", чтоб отменить задачу",
+            "ModelNotSetedNoExist": "Модель не найдена в списке моделей. Установка отменена. Введите \"/models\", чтоб посмотреть список моделей",
+            "SystemPromtDropped": "Системный промт отчищен",
+            "ContextCleared": "Контекст отчищен",
+            "SystemPromtChanged": "Системный промт изменён"
+        }
+    },
+    "commands": {
+        "clear": {
+            "command": "clear",
+            "description": "Очистить контекст"
+        },
+        "stop": {
+            "command": "stop",
+            "description": "Остановить выполнение текущего запроса"
+        },
+        "stop_all": {
+            "command": "stop_all",
+            "description": "Остановить все активные запросы"
+        },
+        "system": {
+            "command": "system",
+            "description": "Установить системный промт"
+        },
+        "model": {
+            "command": "model",
+            "description": "Показать или установить текущую модель"
+        },
+        "models": {
+            "command": "models",
+            "description": "Выбрать модель"
+        },
+        "make_admin": {
+            "command": "make_admin",
+            "description": "Назначить пользователя администратором"
+        },
+        "remove_admin": {
+            "command": "remove_admin",
+            "description": "Лишить пользователя прав администратора"
+        },
+        "ban_user": {
+            "command": "ban_user",
+            "description": "Забанить пользователя"
+        },
+        "unban_user": {
+            "command": "unban_user",
+            "description": "Разбанить пользователя"
+        },
+        "add_group": {
+            "command": "add_group",
+            "description": "Добавить группу в разрешённые"
+        },
+        "remove_group": {
+            "command": "remove_group",
+            "description": "Удалить группу из разрешённых"
+        },
+        "add_chat": {
+            "command": "add_chat",
+            "description": "Добавить чат пользователя в разрешённые"
+        },
+        "remove_chat": {
+            "command": "remove_chat",
+            "description": "Удалить чат пользователя из разрешённых"
+        }
     }
 }
