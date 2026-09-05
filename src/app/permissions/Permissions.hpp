@@ -2,46 +2,46 @@
 
 #include <unordered_set>
 
-#include "PermissionData.hpp"
-#include <app/middleware/Types.hpp>
+#include <app/Types.hpp>
+#include <app/permissions/Data.hpp>
 
-namespace middleware
+namespace permissions
 {
-class PermissionEditor;
-class PermissionReadWriter;
+class Editor;
+class ReadWriter;
 class Permissions
 {
-    friend class PermissionEditor;
-    friend class PermissionReadWriter;
+    friend class Editor;
+    friend class ReadWriter;
 
 public:
     // Создатель
-    inline bool isCreator(const UserId id) const
+    inline bool isCreator(const app::UserId id) const
     {
         return id == data_.creator;
     }
     // Админ
-    inline bool isAdmin(const UserId id) const
+    inline bool isAdmin(const app::UserId id) const
     {
         return data_.admins.contains(id);
     }
     // Забаненый
-    inline bool isBanned(const UserId id) const
+    inline bool isBanned(const app::UserId id) const
     {
         return data_.bannedUsers.contains(id);
     }
     // Допустимый личный чат
-    bool allowedChat(const ChatId id) const
+    bool allowedChat(const app::ChatId id) const
     {
         return data_.personalChats.contains(id) && !isBanned(id); // id персонального чата совпадает с id пользователя. Забаненый пользователь не может общаться в лс
     }
     // Допустимая группа
-    bool allowedGroup(const ChatId id) const
+    bool allowedGroup(const app::ChatId id) const
     {
         return data_.groups.contains(id);
     }
 
 private:
-    PermissionData data_;
+    Data data_;
 };
-} // namespace middleware
+} // namespace permissions

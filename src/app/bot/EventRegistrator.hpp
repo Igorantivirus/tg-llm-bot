@@ -4,20 +4,21 @@
 
 #include <boost/asio/any_io_executor.hpp>
 #include <boost/asio/awaitable.hpp>
-
-#include "PermissionChecker.hpp"
-#include <app/middleware/CommandsProcessor.hpp>
-#include <app/middleware/MessagesProcessor.hpp>
 #include <tgbot/Types.h>
+
+#include <app/handlers/CommandsProcessor.hpp>
+#include <app/handlers/MessagesProcessor.hpp>
+
+#include <app/bot/PermissionChecker.hpp>
 
 namespace bot
 {
 class EventRegistrator
 {
 public:
-    using CommandHandler = boost::asio::awaitable<void> (middleware::CommandsProcessor::*)(std::vector<std::string>, TgBot::Message::Ptr);
-    using MessageHandler = boost::asio::awaitable<void> (middleware::MessagesProcessor::*)(TgBot::Message::Ptr);
-    using Permission = bool                             (PermissionChecker::*)(const TgBot::Chat::Type, const middleware::ChatId, const middleware::UserId);
+    using CommandHandler = boost::asio::awaitable<void> (handlers::CommandsProcessor::*)(std::vector<std::string>, TgBot::Message::Ptr);
+    using MessageHandler = boost::asio::awaitable<void> (handlers::MessagesProcessor::*)(TgBot::Message::Ptr);
+    using Permission = bool                             (PermissionChecker::*)(const TgBot::Chat::Type, const app::ChatId, const app::UserId);
 
     struct CommandSettings
     {
@@ -27,7 +28,7 @@ public:
     };
 
 public:
-    EventRegistrator(boost::asio::any_io_executor ex, TgBot::Bot &bot, PermissionChecker checker, middleware::CommandsProcessor &cmdProc, middleware::MessagesProcessor &msgProc)
+    EventRegistrator(boost::asio::any_io_executor ex, TgBot::Bot &bot, PermissionChecker checker, handlers::CommandsProcessor &cmdProc, handlers::MessagesProcessor &msgProc)
         : ex_(ex), bot_(bot), checker_(checker), cmdProc_(cmdProc), msgProc_(msgProc)
     {
         me_ = bot_.getApi().getMe()->username.value_or("");
@@ -75,11 +76,11 @@ public:
 private:
     std::string me_;
 
-    boost::asio::any_io_executor   ex_;
-    TgBot::Bot                    &bot_;
-    PermissionChecker              checker_;
-    middleware::CommandsProcessor &cmdProc_;
-    middleware::MessagesProcessor &msgProc_;
+    boost::asio::any_io_executor ex_;
+    TgBot::Bot                  &bot_;
+    PermissionChecker            checker_;
+    handlers::CommandsProcessor &cmdProc_;
+    handlers::MessagesProcessor &msgProc_;
 
 private:
     static bool isAddressToMe(TgBot::Message::Ptr msg, const std::string &me)

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "EventRegistrator.hpp"
-#include "app/middleware/MessagesProcessor.hpp"
-#include <app/middleware/CommandsProcessor.hpp>
+#include <app/handlers/CommandsProcessor.hpp>
+#include <app/handlers/MessagesProcessor.hpp>
 
 namespace bot
 {
@@ -31,15 +31,15 @@ public:
     }
     void initHandlers()
     {
-        reg_.registrateCommand("clear", &middleware::CommandsProcessor::clearCommand, &PermissionChecker::checkBaseCommand, {0, 0});
-        reg_.registrateCommand("stop", &middleware::CommandsProcessor::stopCommand, &PermissionChecker::checkBaseCommand, {0, 0});
-        reg_.registrateCommand("system", &middleware::CommandsProcessor::systemCommand, &PermissionChecker::checkBaseCommand, {0, 1, true});
-        reg_.registrateCommand("model", &middleware::CommandsProcessor::modelCommand, &PermissionChecker::checkBaseCommand, {1, 1});
-        reg_.registrateCommand("models", &middleware::CommandsProcessor::modelsCommand, &PermissionChecker::checkBaseCommand, {0, 0});
-        reg_.registrateCommand("make_admin", &middleware::CommandsProcessor::makeAdmin, &PermissionChecker::checkBaseCommand, {0, 1});
+        reg_.registrateCommand("clear", &handlers::CommandsProcessor::clearCommand, &PermissionChecker::checkBaseCommand, {0, 0});
+        reg_.registrateCommand("stop", &handlers::CommandsProcessor::stopCommand, &PermissionChecker::checkBaseCommand, {0, 0});
+        reg_.registrateCommand("system", &handlers::CommandsProcessor::systemCommand, &PermissionChecker::checkBaseCommand, {0, 1, true});
+        reg_.registrateCommand("model", &handlers::CommandsProcessor::modelCommand, &PermissionChecker::checkBaseCommand, {1, 1});
+        reg_.registrateCommand("models", &handlers::CommandsProcessor::modelsCommand, &PermissionChecker::checkBaseCommand, {0, 0});
+        reg_.registrateCommand("make_admin", &handlers::CommandsProcessor::makeAdmin, &PermissionChecker::checkBaseCommand, {0, 1});
 
-        reg_.registrateMessageInChat(&middleware::MessagesProcessor::addMessage);
-        reg_.registrateMessageAddress(&middleware::MessagesProcessor::processMessage);
+        reg_.registrateMessageInChat(&handlers::MessagesProcessor::addMessage);
+        reg_.registrateMessageAddress(&handlers::MessagesProcessor::processMessage);
     }
 
 private:

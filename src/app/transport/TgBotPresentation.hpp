@@ -1,13 +1,14 @@
 #pragma once
 
 #include <algorithm>
-#include <core/Presentation/Presenter.hpp>
 #include <string>
+
 #include <tgbot/Types.h>
 
-#include "TgBotApiRedirector.hpp"
+#include <app/core/Presentation/Presenter.hpp>
+#include <app/transport/TgBotApiRedirector.hpp>
 
-namespace middleware
+namespace transport
 {
 class TgBotPresentation : public core::Presenter
 {
@@ -19,7 +20,6 @@ public:
 
     asio::awaitable<void> presentMessage(core::OperationInfo::Ptr info, utils::StreamGenerator<std::string> &gen) override
     {
-        std::cout << "Chat id: " << info->getChatId() << '\n';
         auto res = co_await redirector_.call([id = info->getChatId()](const TgBot::Api &api) -> TgBot::Message::Ptr
         {
             return api.sendMessage(id, "Думаю . . .");
@@ -110,4 +110,4 @@ private:
 
     std::size_t prSize_ = 100;
 };
-} // namespace middleware
+} // namespace transport

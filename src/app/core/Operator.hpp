@@ -5,8 +5,8 @@
 #include <openai/ChatsProcessor.hpp>
 #include <utils/BusyGuard.hpp>
 
-#include "Presentation/Presenter.hpp"
-#include "Tasker/Tasker.hpp"
+#include <app/core/Presentation/Presenter.hpp>
+#include <app/core/Tasker/Tasker.hpp>
 
 namespace core
 {

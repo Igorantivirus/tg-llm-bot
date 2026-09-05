@@ -223,7 +223,6 @@ int main(int argc, char **argv)
 #ifdef _WIN32
     std::system("chcp 65001 > nul");
 #endif
-    std::cout << argv[0] << '\n';
     auto res = app::ConfigReader::read(std::span<char *>(argv, argc));
     if (!res)
     {

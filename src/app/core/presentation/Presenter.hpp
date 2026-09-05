@@ -4,8 +4,8 @@
 
 #include <utils/StreamGenerator.hpp>
 
-#include "InfoType.hpp"
-#include "OperationInfo.hpp"
+#include <app/core/presentation/InfoType.hpp>
+#include <app/core/presentation/OperationInfo.hpp>
 
 namespace core
 {

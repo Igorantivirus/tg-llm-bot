@@ -3,20 +3,21 @@
 #include <exception>
 #include <fstream>
 #include <iostream>
-#include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <string>
+
+#include <nlohmann/json.hpp>
 #include <utils/Jsonser.hpp>
 
-#include "Permissions.hpp"
+#include <app/permissions/Permissions.hpp>
 
-namespace middleware
+namespace permissions
 {
-class PermissionReadWriter
+class ReadWriter
 {
 public:
 public:
-    PermissionReadWriter(Permissions &data, std::string fileName)
+    ReadWriter(Permissions &data, std::string fileName)
         : data_(data), fileName_(std::move(fileName))
     {
     }
@@ -45,7 +46,7 @@ public:
 
     void read()
     {
-        PermissionData data;
+        Data data;
         try
         {
             nlohmann::json j;
@@ -74,4 +75,4 @@ private:
     Permissions &data_;
     std::string  fileName_;
 };
-} // namespace middleware
+} // namespace permissions

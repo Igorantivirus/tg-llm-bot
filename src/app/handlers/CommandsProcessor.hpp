@@ -1,20 +1,19 @@
 #pragma once
 
-#include "Permissions/PermissionEditor.hpp"
-#include "Permissions/PermissionReadWriter.hpp"
-#include "TgBotMessageSender.hpp"
-#include "Types.hpp"
-#include <boost/asio/awaitable.hpp>
-#include <core/Operator.hpp>
-
 #include <tgbot/tgbot.h>
 
-namespace middleware
+#include <app/Types.hpp>
+#include <app/core/Operator.hpp>
+#include <app/permissions/Editor.hpp>
+#include <app/permissions/ReadWriter.hpp>
+#include <app/transport/TgBotMessageSender.hpp>
+
+namespace handlers
 {
 class CommandsProcessor
 {
 public:
-    CommandsProcessor(core::Operator &op, PermissionEditor &editor, PermissionReadWriter &readwriter, TgBotMessageSender &sender)
+    CommandsProcessor(core::Operator &op, permissions::Editor &editor, permissions::ReadWriter &readwriter, transport::TgBotMessageSender &sender)
         : operator_(op), editor_(editor), readwriter_(readwriter), sender_(sender)
     {
     }
@@ -61,7 +60,7 @@ public:
 
     boost::asio::awaitable<void> makeAdmin(std::vector<std::string> args, TgBot::Message::Ptr msg)
     {
-        UserId id = {};
+        app::UserId id = {};
         if (!args.empty())
         {
             const std::string &str = args[0];
@@ -79,9 +78,9 @@ public:
     }
 
 private:
-    core::Operator       &operator_;
-    PermissionEditor     &editor_;
-    PermissionReadWriter &readwriter_;
-    TgBotMessageSender   &sender_;
+    core::Operator                &operator_;
+    permissions::Editor           &editor_;
+    permissions::ReadWriter       &readwriter_;
+    transport::TgBotMessageSender &sender_;
 };
-} // namespace middleware
+} // namespace handlers

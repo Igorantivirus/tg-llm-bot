@@ -3,9 +3,9 @@
 #include <openai/ChatsProcessor.hpp>
 #include <utils/StreamGenerator.hpp>
 
-#include "Registration.hpp"
-#include "StopableGenerator.hpp"
-#include <core/Presentation/Presenter.hpp>
+#include <app/core/Presentation/Presenter.hpp>
+#include <app/core/tasker/Registration.hpp>
+#include <app/core/tasker/StopableGenerator.hpp>
 
 namespace core
 {

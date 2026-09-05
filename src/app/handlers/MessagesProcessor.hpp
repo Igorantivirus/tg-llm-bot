@@ -1,17 +1,18 @@
 #pragma once
 
-#include "TgBotApiRedirector.hpp"
-#include "core/Operator.hpp"
-#include <boost/asio/awaitable.hpp>
 #include <memory>
+
+#include <app/core/Operator.hpp>
+#include <app/transport/TgBotApiRedirector.hpp>
+#include <boost/asio/awaitable.hpp>
 #include <tgbot/Types.h>
 
-namespace middleware
+namespace handlers
 {
 class MessagesProcessor
 {
 public:
-    MessagesProcessor(core::Operator &op, TgBotApiRedirector &redirector)
+    MessagesProcessor(core::Operator &op, transport::TgBotApiRedirector &redirector)
         : operator_(op), redirector_(redirector)
     {
     }
@@ -34,7 +35,7 @@ public:
     }
 
 private:
-    core::Operator     &operator_;
-    TgBotApiRedirector &redirector_;
+    core::Operator                &operator_;
+    transport::TgBotApiRedirector &redirector_;
 };
-} // namespace middleware
+} // namespace handlers

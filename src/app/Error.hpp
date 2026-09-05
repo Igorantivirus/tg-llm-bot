@@ -2,7 +2,7 @@
 
 #include <utils/ErrorGenerator.hpp>
 
-namespace middleware
+namespace app
 {
 enum class Error : std::uint8_t
 {
@@ -16,6 +16,6 @@ constexpr std::array<const char *, static_cast<std::size_t>(Error::Unknown) + 1>
     "System exception in tg api",
     "Unknown std exception in tg api",
     "Unknown"};
-} // namespace middleware
+} // namespace app
 
-UTILS_GENERATE_ERRORS(middleware, 0x6a3f12d7b8e04d44ULL)
+UTILS_GENERATE_ERRORS(app, 0x6a3f12d7b8e04d44ULL)

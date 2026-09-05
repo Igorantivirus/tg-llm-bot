@@ -3,8 +3,8 @@
 #include <expected>
 #include <span>
 
-#include <config/AppConfig.hpp>
-#include <config/ConfigReader.hpp>
+#include <app/config/AppConfig.hpp>
+#include <app/config/ConfigReader.hpp>
 
 namespace app
 {

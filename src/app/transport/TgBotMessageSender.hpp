@@ -1,12 +1,15 @@
 #pragma once
 
-#include "TgBotApiRedirector.hpp"
-#include "Types.hpp"
-#include <boost/asio/awaitable.hpp>
 #include <sstream>
+
+#include <boost/asio/awaitable.hpp>
 #include <tgbot/Api.h>
 #include <tgbot/Types.h>
-namespace middleware
+
+#include <app/Types.hpp>
+#include <app/transport/TgBotApiRedirector.hpp>
+
+namespace transport
 {
 class TgBotMessageSender
 {
@@ -17,7 +20,7 @@ public:
     }
 
     template <typename... Types>
-    asio::awaitable<void> sendMessage(const ChatId id, Types &&...args)
+    asio::awaitable<void> sendMessage(const app::ChatId id, Types &&...args)
     {
         std::ostringstream sout;
         ((sout << std::forward<Types>(args)), ...);
@@ -32,4 +35,4 @@ public:
 private:
     TgBotApiRedirector &redirector_;
 };
-} // namespace middleware
+} // namespace transport

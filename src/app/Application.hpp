@@ -1,25 +1,24 @@
 #pragma once
 
-#include "bot/BotCustomizer.hpp"
-#include "bot/EventRegistrator.hpp"
-#include "config/AppConfig.hpp"
-#include <boost/asio/co_spawn.hpp>
-#include <boost/asio/detached.hpp>
-#include <optional>
-#include <tgbot/Bot.h>
-#include <thread>
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/thread_pool.hpp>
 
-#include <boost/asio.hpp>
+#include <app/config/AppConfig.hpp>
 
-#include <utils/MethodBinder.hpp>
-#include <utils/Types.hpp>
+#include <app/transport/TgBotApiRedirector.hpp>
+#include <app/transport/TgBotMessageSender.hpp>
+#include <app/transport/TgBotPresentation.hpp>
 
-#include "bot/PermissionChecker.hpp"
-#include "middleware/CommandsProcessor.hpp"
-#include "middleware/MessagesProcessor.hpp"
-#include "middleware/Permissions/Permissions.hpp"
-#include "middleware/TgBotMessageSender.hpp"
-#include "middleware/TgBotPresentation.hpp"
+#include <app/permissions/Editor.hpp>
+#include <app/permissions/Permissions.hpp>
+#include <app/permissions/ReadWriter.hpp>
+
+#include <app/handlers/CommandsProcessor.hpp>
+#include <app/handlers/MessagesProcessor.hpp>
+
+#include <app/bot/BotCustomizer.hpp>
+#include <app/bot/EventRegistrator.hpp>
+#include <app/bot/PermissionChecker.hpp>
 
 namespace app
 {
@@ -67,24 +66,24 @@ private:
     std::optional<std::jthread> ioThread_;
     boost::asio::thread_pool    pool_;
 
-    TgBot::Bot                     bot_;
-    middleware::TgBotApiRedirector redirector_;
-    middleware::TgBotMessageSender sender_;
-    middleware::TgBotPresentation  presenter_;
+    TgBot::Bot                    bot_;
+    transport::TgBotApiRedirector redirector_;
+    transport::TgBotMessageSender sender_;
+    transport::TgBotPresentation  presenter_;
 
     openai::ChatsProcessor proc_;
     core::Operator         operator_;
 
-    middleware::Permissions          data_;
-    middleware::PermissionReadWriter permReadWriter_;
-    middleware::PermissionEditor     editor;
-    middleware::CommandsProcessor    cmdProc_;
-    middleware::MessagesProcessor    msgProc_;
+    permissions::Permissions data_;
+    permissions::ReadWriter  permReadWriter_;
+    permissions::Editor      editor;
+
+    handlers::CommandsProcessor cmdProc_;
+    handlers::MessagesProcessor msgProc_;
 
     bot::PermissionChecker checker_;
-
-    bot::EventRegistrator reger_;
-    bot::BotCustomizer    customizer_;
+    bot::EventRegistrator  reger_;
+    bot::BotCustomizer     customizer_;
 
 private:
     int botMain()
