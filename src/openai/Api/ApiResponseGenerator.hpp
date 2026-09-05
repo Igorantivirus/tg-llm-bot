@@ -15,8 +15,8 @@ class ApiResponseGenerator : public utils::StreamGenerator<dto::ChatCompletionsR
     friend class Api;
 
 private:
-    ApiResponseGenerator(net::HttpStream &http)
-        : parser_(http),
+    ApiResponseGenerator(net::HttpStreamReader http)
+        : parser_(std::move(http)),
           mainResult_(std::nullopt)
     {
     }
@@ -28,19 +28,19 @@ private:
     }
 
 private:
-    net::SseParser                              parser_;
+    std::optional<net::SseParser>               parser_;
     std::optional<dto::ChatCompletionsResponse> mainResult_;
 
 private:
     bool isReady() const override
     {
-        return !parser_.done() || mainResult_;
+        return (parser_ && !parser_->done()) || mainResult_;
     }
     utils::AsyncResult<dto::ChatCompletionsResponse> nextImpl() override
     {
         if (mainResult_)
             co_return takeResult(); // Результат вернётся, а sse stream будет не валидным
-        auto nextChunk = co_await parser_.next();
+        auto nextChunk = co_await parser_->next();
         if (!nextChunk)
             co_return std::unexpected(nextChunk.error());
         std::string body = std::move(nextChunk.value()); // Полностью следующий фрагмент
