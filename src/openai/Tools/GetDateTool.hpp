@@ -2,7 +2,7 @@
 
 #include <chrono>
 
-#include "Tool.hpp"
+#include <openai/Tools/Tool.hpp>
 
 namespace openai
 {

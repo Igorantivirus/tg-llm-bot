@@ -4,12 +4,11 @@
 #include <ranges>
 #include <stdexcept>
 
-#include <dto/ChatCompletions/Message.hpp>
-#include <dto/ChatCompletions/Response.hpp>
-#include <dto/ChatCompletions/Tools.hpp>
-#include <utils/MethodBinder.hpp>
-
 #include <openai/ChatsSettings/ChatsSettings.hpp>
+#include <openai/dto/ChatCompletions/Message.hpp>
+#include <openai/dto/ChatCompletions/Response.hpp>
+#include <openai/dto/ChatCompletions/Tools.hpp>
+#include <utils/MethodBinder.hpp>
 
 namespace openai
 {

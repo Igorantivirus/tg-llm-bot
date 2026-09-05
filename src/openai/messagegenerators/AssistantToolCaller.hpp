@@ -1,8 +1,7 @@
 #pragma once
 
-#include <dto/ChatCompletions/Message.hpp>
-
 #include <openai/Tools/Tool.hpp>
+#include <openai/dto/ChatCompletions/Message.hpp>
 
 namespace openai
 {

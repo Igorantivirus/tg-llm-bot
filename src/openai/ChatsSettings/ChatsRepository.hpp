@@ -3,7 +3,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "ChatHistory.hpp"
+#include <openai/chatssettings/ChatHistory.hpp>
 
 namespace openai
 {

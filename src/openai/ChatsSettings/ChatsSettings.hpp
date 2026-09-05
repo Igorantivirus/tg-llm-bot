@@ -3,8 +3,9 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "ChatsRepository.hpp"
+#include <openai/ChatsSettings/ChatsRepository.hpp>
 #include <openai/Tools/Tool.hpp>
+#include <openai/chatssettings/ChatHistory.hpp>
 
 namespace openai
 {

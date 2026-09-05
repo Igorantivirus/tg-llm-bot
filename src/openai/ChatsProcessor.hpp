@@ -1,8 +1,8 @@
 #pragma once
 
-#include "ChatsSettings/AdditionalsToMessage.hpp"
-#include "ChatsSettings/HistoryUtils.hpp"
-#include "MessagesGenerator/AssistantMessagesGenerator.hpp"
+#include <openai/ChatsSettings/AdditionalsToMessage.hpp>
+#include <openai/ChatsSettings/HistoryUtils.hpp>
+#include <openai/messagegenerators/AssistantMessagesGenerator.hpp>
 
 namespace openai
 {

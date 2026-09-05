@@ -1,13 +1,9 @@
 #pragma once
 
-#include <dto/ChatCompletions/Message.hpp>
-#include <dto/ChatCompletions/Request.hpp>
-#include <ranges>
-
-#include "AdditionalsToMessage.hpp"
-#include "ChatHistory.hpp"
-#include "ChatsSettings.hpp"
-#include "Types.hpp"
+#include <openai/chatssettings/AdditionalsToMessage.hpp>
+#include <openai/chatssettings/ChatHistory.hpp>
+#include <openai/chatssettings/ChatsSettings.hpp>
+#include <openai/dto/ChatCompletions/Request.hpp>
 
 namespace openai
 {

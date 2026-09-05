@@ -1,14 +1,11 @@
 #pragma once
 
-#include <dto/Utils.hpp>
-
 #include <openai/Api/Api.hpp>
-#include <openai/Api/ApiResponseGenerator.hpp>
 #include <openai/ChatsSettings/ChatsSettings.hpp>
 #include <openai/ChatsSettings/HistoryUtils.hpp>
-
-#include "AssistantMessagesAccumulator.hpp"
-#include "AssistantToolCaller.hpp"
+#include <openai/dto/Utils.hpp>
+#include <openai/messagegenerators/AssistantMessagesAccumulator.hpp>
+#include <openai/messagegenerators/AssistantToolCaller.hpp>
 
 namespace openai
 {

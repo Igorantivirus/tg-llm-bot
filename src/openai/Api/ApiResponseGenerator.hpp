@@ -1,10 +1,11 @@
 #pragma once
 
-#include <dto/ChatCompletions/Response.hpp>
-#include <dto/Parser.hpp>
 #include <net/SseStream.hpp>
 #include <utils/StreamGenerator.hpp>
 #include <utils/Types.hpp>
+
+#include <openai/dto/ChatCompletions/Response.hpp>
+#include <openai/dto/Parser.hpp>
 
 namespace openai
 {

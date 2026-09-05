@@ -1,14 +1,14 @@
 #pragma once
 
-#include <dto/ChatCompletions/Request.hpp>
-#include <dto/ChatCompletions/Response.hpp>
-#include <dto/ModelsResponse.hpp>
-#include <dto/Parser.hpp>
 #include <net/HttpClient.hpp>
 #include <utils/Types.hpp>
 
-#include "ApiResponseGenerator.hpp"
 #include <openai/Error.hpp>
+#include <openai/api/ApiResponseGenerator.hpp>
+#include <openai/dto/ChatCompletions/Request.hpp>
+#include <openai/dto/ChatCompletions/Response.hpp>
+#include <openai/dto/ModelsResponse.hpp>
+#include <openai/dto/Parser.hpp>
 
 namespace openai
 {

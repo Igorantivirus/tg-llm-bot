@@ -1,6 +1,6 @@
 #pragma once
 
-#include <dto/ChatCompletions/Message.hpp>
+#include <openai/dto/ChatCompletions/Message.hpp>
 
 namespace openai
 {

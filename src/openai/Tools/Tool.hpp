@@ -1,10 +1,11 @@
 #pragma once
 
-#include "dto/ChatCompletions/JsonSchema.hpp"
-#include "utils/Types.hpp"
-#include <dto/ChatCompletions/Tools.hpp>
 #include <memory>
 #include <string>
+
+#include <utils/Types.hpp>
+
+#include <openai/dto/ChatCompletions/Tools.hpp>
 
 namespace openai
 {

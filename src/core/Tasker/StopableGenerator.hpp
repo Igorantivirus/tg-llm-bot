@@ -1,7 +1,7 @@
 #pragma once
 
-#include "utils/NoMovable.hpp"
-#include <openai/MessagesGenerator/AssistantMessagesGenerator.hpp>
+#include <openai/messagegenerators/AssistantMessagesGenerator.hpp>
+#include <utils/NoMovable.hpp>
 #include <utils/StreamGenerator.hpp>
 
 namespace core
@@ -24,10 +24,6 @@ private:
         if (*stop_)
             co_return endOfStream;
         auto res = co_await gen_.next();
-        if (!res)
-        {
-            std::cout << "ТУТ ОШИБКА АБОАБАЫЬЖДЫВ: " << res.error().message() << '\n';
-        }
         co_return res;
     }
 };

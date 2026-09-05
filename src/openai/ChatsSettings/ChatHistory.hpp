@@ -2,7 +2,7 @@
 
 #include <unordered_set>
 
-#include "Types.hpp"
+#include <openai/chatssettings/Types.hpp>
 
 namespace openai
 {
