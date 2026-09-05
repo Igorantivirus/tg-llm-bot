@@ -1,6 +1,6 @@
 #pragma once
 
-#include <unordered_map>
+#include <memory>
 
 #include <openai/ChatsSettings/Types.hpp>
 
@@ -8,21 +8,19 @@ namespace core
 {
 struct Registration
 {
-    std::unordered_map<openai::ChatIdType, bool *> &stopsSignals;
-    openai::ChatIdType                              chatId;
-    bool                                            value = false;
-    Registration(std::unordered_map<openai::ChatIdType, bool *> &stopsSignals, openai::ChatIdType chatId)
-        : stopsSignals(stopsSignals), chatId(chatId)
+    std::shared_ptr<bool> stop_;
+    Registration(std::shared_ptr<bool> &stop)
     {
-        stopsSignals[chatId] = &value;
+        stop = std::make_shared<bool>(false);
+        stop_ = stop;
     }
     ~Registration()
     {
-        stopsSignals.erase(chatId);
+        *stop_ = true;
     }
-    const bool &stop() const
+    std::shared_ptr<bool> stop() const
     {
-        return *stopsSignals.find(chatId)->second;
+        return stop_;
     }
 };
 } // namespace core

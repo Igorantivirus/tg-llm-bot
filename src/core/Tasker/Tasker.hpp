@@ -72,7 +72,7 @@ public:
         auto gen = co_await proc_.chatCompletions(info->getChatId(), std::move(msg), std::move(adds));
         if (!gen)
             co_return co_await presenter_.presentError(info, gen.error());
-        Registration      reg(stopsSignals_, info->getChatId());
+        Registration      reg(stopsSignals_[info->getChatId()]);
         StopableGenerator stopableGen(std::move(gen.value()), reg.stop());
         co_await presenter_.presentMessage(info, stopableGen); // StopableGenerator no movable. поэтому гарантируется, что presentMessage завершится раньше, чем унечтожится Registration
     }
@@ -82,6 +82,6 @@ private:
 
     Presenter &presenter_;
 
-    std::unordered_map<openai::ChatIdType, bool *> stopsSignals_;
+    std::unordered_map<openai::ChatIdType, std::shared_ptr<bool>> stopsSignals_;
 };
 } // namespace core

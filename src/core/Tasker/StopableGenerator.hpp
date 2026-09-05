@@ -9,21 +9,26 @@ namespace core
 class StopableGenerator : public utils::StreamGenerator<std::string>, public utils::NoMovable
 {
 public:
-    StopableGenerator(openai::AssistantMessagesGenerator gen, const bool &stop)
+    StopableGenerator(openai::AssistantMessagesGenerator gen, const std::shared_ptr<bool> stop)
         : gen_(std::move(gen)), stop_(stop)
     {
     }
 
 private:
     openai::AssistantMessagesGenerator gen_;
-    const bool                        &stop_;
+    const std::shared_ptr<bool>        stop_;
 
 private:
     utils::AsyncResult<std::string> nextImpl() override
     {
-        if (stop_)
+        if (*stop_)
             co_return endOfStream;
-        co_return co_await gen_.next();
+        auto res = co_await gen_.next();
+        if (!res)
+        {
+            std::cout << "ТУТ ОШИБКА АБОАБАЫЬЖДЫВ: " << res.error().message() << '\n';
+        }
+        co_return res;
     }
 };
 } // namespace core
