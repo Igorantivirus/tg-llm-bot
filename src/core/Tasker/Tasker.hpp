@@ -74,7 +74,7 @@ public:
             co_return co_await presenter_.presentError(info, gen.error());
         Registration      reg(stopsSignals_, info->getChatId());
         StopableGenerator stopableGen(std::move(gen.value()), reg.stop());
-        co_await presenter_.presentMessage(info, stopableGen);
+        co_await presenter_.presentMessage(info, stopableGen); // StopableGenerator no movable. поэтому гарантируется, что presentMessage завершится раньше, чем унечтожится Registration
     }
 
 private:
