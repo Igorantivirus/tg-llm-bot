@@ -4,7 +4,7 @@
 #include <dto/ChatCompletions/Response.hpp>
 #include <dto/ModelsResponse.hpp>
 #include <dto/Parser.hpp>
-#include <net/HttpStream.hpp>
+#include <net/HttpClient.hpp>
 #include <utils/Types.hpp>
 
 #include "ApiResponseGenerator.hpp"
@@ -16,8 +16,8 @@ namespace openai
 class Api
 {
 public:
-    Api(asio::any_io_executor ex, std::string host, std::string port, std::string token)
-        : http_(ex),
+    Api(asio::any_io_executor ex, const std::size_t tcpConnsCount, std::string host, std::string port, std::string token)
+        : http_(ex, tcpConnsCount),
           fullHost_(isNum(port) ? host + ':' + port : host),
           host_(std::move(host)),
           port_(std::move(port)),
@@ -34,11 +34,11 @@ public:
         auto res = co_await http_.request(host_, port_, std::move(req));
         if (!res)
             co_return std::unexpected(res.error());
-        auto resp = res.value();
-        if (!resp.body)
+        auto resp = std::move(res.value());
+        if (resp.isStreaming())
             co_return std::unexpected(Error::EmptyModels);
 
-        co_return dto::deserialize<dto::ModelsResponse>(*resp.body);
+        co_return dto::deserialize<dto::ModelsResponse>(resp.stringBody());
     }
 
     utils::AsyncResult<ApiResponseGenerator> chatCompletions(dto::ChatCompletionsRequest dto)
@@ -53,22 +53,22 @@ public:
         auto res = co_await http_.request(host_, port_, std::move(req));
         if (!res)
             co_return std::unexpected(res.error());
-        auto resp = res.value();
+        auto resp = std::move(res.value());
         if (resp.header.result_int() / 100 != 2)
             co_return std::unexpected(Error::FromServer);
 
-        if (resp.body) // Тело сразу есть
+        if (!resp.isStreaming()) // Тело сразу есть
         {
-            auto resDto = dto::deserialize<dto::ChatCompletionsResponse>(*resp.body);
+            auto resDto = dto::deserialize<dto::ChatCompletionsResponse>(resp.stringBody());
             if (!resDto)
                 co_return std::unexpected(resDto.error());
             co_return ApiResponseGenerator(std::move(resDto.value()));
         }
-        co_return ApiResponseGenerator{http_};
+        co_return ApiResponseGenerator{std::move(resp.streamBody())};
     }
 
 private:
-    net::HttpStream http_;
+    net::HttpClient http_;
 
     const std::string fullHost_;
     const std::string host_;
