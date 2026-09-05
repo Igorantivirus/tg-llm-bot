@@ -74,10 +74,26 @@ private:
 private: // Установка и обработки очереди
     inline void processTask(asio::any_io_executor executor, OperationInfo::Ptr info, const std::uint8_t priority, asio::awaitable<void> task)
     {
-        if (!queues_[info->getChatId()].empty())                                                            // Если что-то есть, скажем, что поставили в очередь
-            asio::co_spawn(executor, presenter_.presentInfo(info, InfoType::WaitPrevTask), asio::detached); //
-        queues_[info->getChatId()].push(std::move(task));                                                   // Добавим операцию в очередь
-        asio::co_spawn(executor, processQueue(info), asio::detached);                                       // Запусим очередь
+        if (!queues_[info->getChatId()].empty()) // Если что-то есть, скажем, что поставили в очередь
+            // asio::co_spawn(executor, presenter_.presentInfo(info, InfoType::WaitPrevTask), asio::detached); //
+            asio::co_spawn(executor, presenter_.presentInfo(info, InfoType::WaitPrevTask), [](std::exception_ptr e)
+            {
+                if (e)
+                    try
+                    {
+                        std::rethrow_exception(e);
+                    }
+                    catch (const std::exception &ex)
+                    {
+                        std::cerr << "COROUTINE: " << ex.what() << '\n';
+                    }
+                    catch (...)
+                    {
+                        std::cerr << "Unknown error\n";
+                    }
+            });
+        queues_[info->getChatId()].push(std::move(task));             // Добавим операцию в очередь
+        asio::co_spawn(executor, processQueue(info), asio::detached); // Запусим очередь
     }
 
     asio::awaitable<void> processQueue(OperationInfo::Ptr info)
@@ -88,8 +104,9 @@ private: // Установка и обработки очереди
         std::queue<asio::awaitable<void>> &queue = queues_[info->getChatId()];
         while (!queue.empty())
         {
-            co_await std::move(queue.front());
+            asio::awaitable<void> call = std::move(queue.front());
             queue.pop();
+            co_await std::move(call);
         }
     }
 };
