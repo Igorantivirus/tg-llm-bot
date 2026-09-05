@@ -10,6 +10,11 @@ namespace openai
 class ChatsRepository
 {
 public:
+    ChatsRepository(std::string defaultModel)
+        : defaultModel_(defaultModel)
+    {
+    }
+
     void setModel(const ChatIdType id, std::string model)
     {
         histories_[id].model = std::move(model);
@@ -45,10 +50,14 @@ public:
 
     const ChatHistory &getHistoryById(const ChatIdType id)
     {
-        return histories_[id];
+        ChatHistory &history = histories_[id];
+        if (history.model.empty())
+            history.model = defaultModel_;
+        return history;
     }
 
 private:
     std::unordered_map<ChatIdType, ChatHistory> histories_;
+    std::string                                 defaultModel_;
 };
 } // namespace openai

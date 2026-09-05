@@ -15,6 +15,11 @@ class ChatsSettings
     friend class ChatsProcessor;
 
 public:
+    ChatsSettings(std::string defaultModel)
+        : repo_(std::move(defaultModel))
+    {
+    }
+
     const std::unordered_map<std::string, Tool::Ptr> &tools() const
     {
         return tools_;
