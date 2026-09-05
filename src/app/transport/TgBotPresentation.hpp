@@ -1,7 +1,9 @@
 #pragma once
 
 #include "app/transport/TgBotMessageSender.hpp"
+#include "magic_enum/magic_enum.hpp"
 #include "openai/ChatsProcessor.hpp"
+#include "presentation/KeyBoardGenerate.hpp"
 #include <string>
 
 #include <app/config/Locale.hpp>
@@ -23,6 +25,7 @@ public:
         TgBot::Message::Ptr msg = co_await sender_.sendMessage(info->getChatId(), locale_.thinking);
         if (!msg)
             co_return;
+        co_await sender_.sendAction(info->getChatId(), transport::ChatAction::typing);
         std::size_t  lastSize = 0;
         std::string  accum;
         std::int64_t msgId = msg->messageId;
@@ -47,7 +50,7 @@ public:
     }
     asio::awaitable<void> presentInfo(core::OperationInfo::Ptr info, const core::InfoType msgInfo) override
     {
-        std::ignore = co_await sender_.sendMessage(info->getChatId(), utils::Format::format(locale_.info, static_cast<int>(msgInfo)));
+        std::ignore = co_await sender_.sendMessage(info->getChatId(), utils::Format::format(locale_.info, infoToString(msgInfo)));
         co_return;
     }
     asio::awaitable<void> presentError(core::OperationInfo::Ptr info, const utils::ErrorCode err) override
@@ -58,9 +61,9 @@ public:
 
     asio::awaitable<void> presentModels(core::OperationInfo::Ptr info, std::unordered_set<std::string> models) override
     {
-        std::string msg = utils::Format::format(locale_.currentModel, proc_.settings().repo().getHistoryById(info->getChatId()).model);
-
-        std::ignore = co_await sender_.sendMessage(info->getChatId(), std::move(msg));
+        std::string                      msg = utils::Format::format(locale_.currentModel, proc_.settings().repo().getHistoryById(info->getChatId()).model);
+        TgBot::InlineKeyboardMarkup::Ptr kb = KeyBoardGenerate::generateForModels(proc_.settings().models(), info->getChatId());
+        std::ignore = co_await sender_.sendMessage(info->getChatId(), std::move(msg), std::move(kb));
         co_return;
     }
     asio::awaitable<void> presentModel(core::OperationInfo::Ptr info, std::string model) override
@@ -80,5 +83,14 @@ private:
 
     config::Locale locale_;
     std::size_t    prSize_ = 200;
+
+private:
+    std::string infoToString(const core::InfoType info)
+    {
+        std::string name(magic_enum::enum_name(info));
+        if (auto found = locale_.infoLocale.find(std::string(name)); found != locale_.infoLocale.end())
+            return found->second;
+        return "Info: " + name;
+    }
 };
 } // namespace transport
