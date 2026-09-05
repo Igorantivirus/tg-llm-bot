@@ -68,7 +68,7 @@ public:
     {
         std::ignore = co_await redirector_.call([id = std::move(id), msg = std::move(msg)](const TgBot::Api &api) -> void
         {
-            api.answerCallbackQuery(id, msg, true);
+            api.answerCallbackQuery(id, msg, false);
         });
         co_return;
     }
