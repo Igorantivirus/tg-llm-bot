@@ -1,17 +1,16 @@
 #pragma once
 
-#include "magic_enum/magic_enum.hpp"
-#include "presentation/ChatAction.hpp"
-#include <sstream>
-
-#include <boost/asio/awaitable.hpp>
 #include <string>
 #include <tgbot/Api.h>
 #include <tgbot/Types.h>
+#include <tuple>
+
+#include <boost/asio/awaitable.hpp>
+#include <magic_enum/magic_enum.hpp>
 
 #include <app/Types.hpp>
 #include <app/transport/TgBotApiRedirector.hpp>
-#include <tuple>
+#include <app/transport/presentation/ChatAction.hpp>
 
 namespace transport
 {
@@ -21,19 +20,6 @@ public:
     TgBotMessageSender(TgBotApiRedirector &redirector)
         : redirector_(redirector)
     {
-    }
-
-    template <typename... Types>
-    asio::awaitable<void> sendMessage(const app::ChatId id, Types &&...args)
-    {
-        std::ostringstream sout;
-        ((sout << std::forward<Types>(args)), ...);
-        std::string str = sout.str();
-        std::ignore = co_await redirector_.call([id, str = std::move(str)](const TgBot::Api &api) -> TgBot::Message::Ptr
-        {
-            return api.sendMessage(id, str);
-        });
-        co_return;
     }
 
     asio::awaitable<void> sendAction(const app::ChatId id, transport::ChatAction act)
@@ -55,11 +41,11 @@ public:
         co_return res ? res.value() : nullptr;
     }
 
-    asio::awaitable<TgBot::Message::Ptr> editMessage(const app::ChatId chatid, const app::MessId msgId, std::string msg)
+    asio::awaitable<TgBot::Message::Ptr> editMessage(const app::ChatId chatid, const app::MessId msgId, std::string msg, TgBot::InlineKeyboardMarkup::Ptr kb = nullptr, bool md = false)
     {
-        auto res = co_await redirector_.call([chatid, msgId, msg = std::move(msg)](const TgBot::Api &api) -> TgBot::Message::Ptr
+        auto res = co_await redirector_.call([chatid, msgId, md, msg = std::move(msg), kb = std::move(kb)](const TgBot::Api &api) -> TgBot::Message::Ptr
         {
-            return api.editMessageText(std::move(msg), chatid, msgId, "", "", nullptr);
+            return api.editMessageText(msg, chatid, msgId, "", md ? "MarkdownV2" : "", nullptr, kb);
         });
         co_return res ? res.value() : nullptr;
     }
