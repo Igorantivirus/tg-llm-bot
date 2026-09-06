@@ -82,6 +82,27 @@ public:
         co_return;
     }
 
+    asio::awaitable<TgBot::File::Ptr> getFile(std::string fileId)
+    {
+        auto res = co_await redirector_.call([fileId = std::move(fileId)](const TgBot::Api &api) -> TgBot::File::Ptr
+        {
+            return api.getFile(fileId);
+        });
+        if (res)
+            co_return res.value();
+        co_return nullptr;
+    }
+    asio::awaitable<std::string> downloadFile(std::string filePath)
+    {
+        auto res = co_await redirector_.call([filePath = std::move(filePath)](const TgBot::Api &api) -> std::string
+        {
+            return api.downloadFile(filePath);
+        });
+        if (res)
+            co_return res.value();
+        co_return "";
+    }
+
 private:
     TgBotApiRedirector &redirector_;
 };

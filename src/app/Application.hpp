@@ -43,7 +43,7 @@ public:
           editor(data_),
 
           cmdProc_(operator_, editor, permReadWriter_, sender_, config.locale),
-          msgProc_(operator_, redirector_),
+          msgProc_(operator_, sender_),
           queProc_(proc_, sender_, config.locale),
 
           checker_(data_),
