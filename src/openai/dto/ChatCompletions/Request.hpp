@@ -33,6 +33,17 @@ struct AudioOutput
     std::string format; ///< "wav" | "mp3" | "flac" | "opus" | "pcm16"
 };
 
+enum class ReasoningEffort : std::uint8_t
+{
+    none,
+    minimal,
+    low,
+    medium,
+    high,
+    xhigh,
+    max
+};
+
 struct ChatCompletionsRequest
 {
     // ========================================================================
@@ -101,7 +112,7 @@ struct ChatCompletionsRequest
     std::optional<std::unordered_map<std::string, double>> logit_bias;
 
     std::optional<std::string>              user;
-    std::optional<std::string>              reasoning_effort; ///< "minimal"|"low"|"medium"|"high"; none у llama.cpp отключает thinking
+    std::optional<ReasoningEffort>          reasoning_effort; ///< "minimal"|"low"|"medium"|"high"; none у llama.cpp отключает thinking
     std::optional<std::vector<std::string>> modalities;       ///< ["text"] | ["text","audio"]
     std::optional<AudioOutput>              audio;
     std::optional<bool>                     store;

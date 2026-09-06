@@ -34,6 +34,7 @@ public:
         dto::ChatCompletionsRequest req; // Ставим основное
         req.stream = setts.stream();
         req.model = history.model;
+        req.reasoning_effort = history.effort;
 
         req.messages.reserve(getSize(history) + processFragment.size());
         historyToMessages(req.messages, history);

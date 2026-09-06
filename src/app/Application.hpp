@@ -35,7 +35,7 @@ public:
           sender_(redirector_),
           presenter_(sender_, proc_, config.locale),
 
-          proc_(io_.get_executor(), std::move(config.defaultModel), config.tcpSocketsCount, config.openAiUrl.host, config.openAiUrl.port),
+          proc_(io_.get_executor(), std::move(config.defaultModel), config.defaultEffort, config.tcpSocketsCount, config.openAiUrl.host, config.openAiUrl.port),
           operator_(presenter_, proc_),
 
           data_(),

@@ -11,9 +11,9 @@ namespace openai
 class ChatsProcessor
 {
 public:
-    ChatsProcessor(asio::any_io_executor ex, std::string defaultModel, const std::size_t tcpConnsCount, std::string host, std::string port, std::string apiToken = {})
+    ChatsProcessor(asio::any_io_executor ex, std::string defaultModel, dto::ReasoningEffort defaultEffort, const std::size_t tcpConnsCount, std::string host, std::string port, std::string apiToken = {})
         : api_(ex, tcpConnsCount, std::move(host), std::move(port), apiToken),
-          setts_(std::move(defaultModel))
+          setts_(std::move(defaultModel), defaultEffort)
     {
     }
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openai/dto/ChatCompletions/Request.hpp"
 #include <unordered_map>
 #include <unordered_set>
 
@@ -10,8 +11,8 @@ namespace openai
 class ChatsRepository
 {
 public:
-    ChatsRepository(std::string defaultModel)
-        : defaultModel_(defaultModel)
+    ChatsRepository(std::string defaultModel, dto::ReasoningEffort defaultEffort)
+        : defaultModel_(defaultModel), defaultEffort_(defaultEffort)
     {
     }
 
@@ -50,14 +51,18 @@ public:
 
     const ChatHistory &getHistoryById(const ChatIdType id)
     {
-        ChatHistory &history = histories_[id];
-        if (history.model.empty())
-            history.model = defaultModel_;
-        return history;
+        auto [it, inserted] = histories_.insert({id, {}});
+        if (inserted)
+        {
+            it->second.model = defaultModel_;
+            it->second.effort = defaultEffort_;
+        }
+        return it->second;
     }
 
 private:
     std::unordered_map<ChatIdType, ChatHistory> histories_;
     std::string                                 defaultModel_;
+    dto::ReasoningEffort                        defaultEffort_;
 };
 } // namespace openai

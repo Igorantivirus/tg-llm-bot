@@ -15,8 +15,8 @@ class ChatsSettings
     friend class ChatsProcessor;
 
 public:
-    ChatsSettings(std::string defaultModel)
-        : repo_(std::move(defaultModel))
+    ChatsSettings(std::string defaultModel, dto::ReasoningEffort defaultEffort)
+        : repo_(std::move(defaultModel), defaultEffort)
     {
     }
 

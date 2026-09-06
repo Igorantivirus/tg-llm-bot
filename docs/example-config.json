@@ -1,6 +1,7 @@
 {
     "token": "TOCKEN",
     "defaultModel": "igor-ai",
+    "defaultEffort": "hight",
     "openAiUrl": {
         "host": "HOST",
         "port": "PORT"
