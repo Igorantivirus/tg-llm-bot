@@ -180,7 +180,7 @@ private:
         co_return base64Pr.value();
     }
 
-    asio::awaitable<void> appendSendDataFromMessage(std::string &text, openai::AdditionalsToMessage &adds, openai::ChatIdType chatId, TgBot::Message::Ptr msg)
+    asio::awaitable<void> appendSendDataFromMessage(std::string &text, openai::AdditionalsToMessage &adds, openai::ChatIdType& chatId, TgBot::Message::Ptr msg)
     {
         if (msg->text)
             text = std::move(msg->text.value());
