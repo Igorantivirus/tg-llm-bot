@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdio>
 #include <nlohmann/adl_serializer.hpp>
+#include <ranges>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -310,6 +311,8 @@ private:
             structToJson<J, T>(j, v, setts);
         else if constexpr (Serializeable<J, T>)
             serializableToJson<J, T>(j, v);
+        else if constexpr (std::ranges::range<T>)
+            rangeToJson<J, T>(j, v, setts);
         else
             throw std::logic_error("Type must be enum|optional|struct or must have from_json function.");
     }
@@ -337,6 +340,18 @@ private:
         {
             toJsonImpl(j, v, setts);
         }, v);
+    }
+    template <BasicJson J, std::ranges::range R>
+    static constexpr void rangeToJson(J &j, const R &r, const SerializeSettings &setts)
+    {
+        j = J::array();
+        // j.typename get_ref<typename J::array_t &>().reserve(std::ranges::size(r));
+        for (const auto &elem : r)
+        {
+            J jelem;
+            toJsonImpl(jelem, elem, setts);
+            j.push_back(std::move(jelem));
+        }
     }
     template <BasicJson J, Enum E>
     static constexpr void enumToJson(J &j, const E &e)
