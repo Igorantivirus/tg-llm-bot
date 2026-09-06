@@ -52,6 +52,13 @@ public:
         return req;
     }
 
+    static void addPhotoToAdditionals(AdditionalsToMessage &additionals, std::string base64)
+    {
+        dto::ImageUrl url;
+        url.url = "data:image/jpeg;base64," + base64;
+        additionals.imagesB64.push_back(std::move(url));
+    }
+
     static dto::Message constructStartMessage(std::string msg, AdditionalsToMessage additionals)
     {
         dto::Message res;
@@ -66,6 +73,7 @@ public:
             appendParts(parts, std::move(additionals.imagesB64), &dto::ImagePart::image_url);
             appendParts(parts, std::move(additionals.audiosB64), &dto::AudioPart::input_audio);
             appendParts(parts, std::move(additionals.filesB64), &dto::FilePart::file);
+            res.content = std::move(parts);
         }
 
         return res;
