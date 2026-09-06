@@ -40,12 +40,10 @@ public:
             }
         }
         if (gen.isError())
-        {
             accum += '\n' + utils::Format::format(locale_.error, gen.endReason().message());
-            std::ignore = co_await sender_.editMessage(info->getChatId(), msgId, accum);
-        }
-        if (accum.size() != lastSize)
-            std::ignore = co_await sender_.editMessage(info->getChatId(), msgId, accum);
+        if (accum.size() != lastSize && lastSize != 0)
+            std::ignore = co_await sender_.editMessage(info->getChatId(), msgId, std::move(accum));
+
         co_return;
     }
     asio::awaitable<void> presentInfo(core::OperationInfo::Ptr info, const core::InfoType msgInfo) override
