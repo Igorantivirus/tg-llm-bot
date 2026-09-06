@@ -1,6 +1,7 @@
 #pragma once
 
 #include "app/transport/TgBotMessageSender.hpp"
+#include "openai/chatssettings/AdditionalsToMessage.hpp"
 #include "openai/chatssettings/HistoryUtils.hpp"
 #include "openai/chatssettings/Types.hpp"
 #include <boost/asio/any_io_executor.hpp>
@@ -116,32 +117,46 @@ public:
 
     asio::awaitable<void> processMessage(TgBot::Message::Ptr msg)
     {
-        // Проверка mediaGroupId идёт ДО проверки text: у фото в альбоме
-        // обычно нет text (подпись лежит в caption).
         if (msg->mediaGroupId)
         {
             co_await collect(std::move(msg), &MessagesProcessor::processMessages);
             co_return;
         }
-        std::string text;
-        if (auto txtPtr = getText(msg); !txtPtr)
-            co_return;
-        else
-            text = std::move(*txtPtr);
-
+        std::string                  text;
         openai::AdditionalsToMessage adds;
+        openai::ChatIdType           chatId = 0;
 
-        if (msg->photo && !msg->photo->empty())
-        {
-            auto b64 = co_await addPhoto(msg->photo.value());
-            if (b64)
-            {
-                std::cout << "Image!!!\n";
-                openai::HistoryUtils::addPhotoToAdditionals(adds, std::move(b64.value()));
-            }
-        }
+        co_await appendSendDataFromMessage(text, adds, chatId, msg);
+        if (!chatId)
+            co_return;
 
         auto info = std::make_shared<core::OperationInfo>(msg->chat->id);
+        co_await operator_.processMessage(info, std::move(text), std::move(adds));
+    }
+
+    asio::awaitable<void> addMessages(std::vector<TgBot::Message::Ptr> msgs)
+    {
+        std::string                  text;
+        openai::AdditionalsToMessage adds;
+        openai::ChatIdType           chatId = 0;
+        for (const auto &msg : msgs)
+            co_await appendSendDataFromMessage(text, adds, chatId, msg);
+        if (!chatId)
+            co_return;
+        auto info = std::make_shared<core::OperationInfo>(chatId);
+        co_await operator_.addMessage(info, std::move(text), std::move(adds));
+    }
+
+    asio::awaitable<void> processMessages(std::vector<TgBot::Message::Ptr> msgs)
+    {
+        std::string                  text;
+        openai::AdditionalsToMessage adds;
+        openai::ChatIdType           chatId = 0;
+        for (const auto &msg : msgs)
+            co_await appendSendDataFromMessage(text, adds, chatId, msg);
+        if (!chatId)
+            co_return;
+        auto info = std::make_shared<core::OperationInfo>(chatId);
         co_await operator_.processMessage(info, std::move(text), std::move(adds));
     }
 
@@ -152,13 +167,34 @@ private:
     std::unordered_map<std::string, MessageCollector::Ptr> collections_;
 
 private:
-    std::string *getText(TgBot::Message::Ptr msg)
+    asio::awaitable<std::optional<std::string>> addPhoto(std::vector<TgBot::PhotoSize::Ptr> &photos)
+    {
+        std::string      fileId = photos.at(0)->fileId;
+        TgBot::File::Ptr file = co_await sender_.getFile(std::move(fileId));
+        if (!file || !file->filePath)
+            co_return std::nullopt;
+        std::string binFile = co_await sender_.downloadFile(std::move(file->filePath.value()));
+        auto        base64Pr = utils::Base64::encode(binFile);
+        if (!base64Pr)
+            co_return std::nullopt;
+        co_return base64Pr.value();
+    }
+
+    asio::awaitable<void> appendSendDataFromMessage(std::string &text, openai::AdditionalsToMessage &adds, openai::ChatIdType chatId, TgBot::Message::Ptr msg)
     {
         if (msg->text)
-            return &msg->text.value();
+            text = std::move(msg->text.value());
         if (msg->caption)
-            return &msg->caption.value();
-        return nullptr;
+            text = std::move(msg->caption.value());
+        if (msg->chat)
+            chatId = msg->chat->id;
+
+        if (msg->photo && !msg->photo->empty())
+        {
+            auto b64 = co_await addPhoto(msg->photo.value());
+            if (b64)
+                openai::HistoryUtils::addPhotoToAdditionals(adds, std::move(b64.value()));
+        }
     }
 
     asio::awaitable<void> collect(TgBot::Message::Ptr msg, MessagesHandler handler)
@@ -173,58 +209,6 @@ private:
             it = collections_.emplace(id, std::move(col)).first;
         }
         it->second->addData(std::move(msg));
-    }
-
-    asio::awaitable<std::optional<std::string>> addPhoto(std::vector<TgBot::PhotoSize::Ptr> &photos)
-    {
-        std::string      fileId = photos.at(0)->fileId;
-        TgBot::File::Ptr file = co_await sender_.getFile(std::move(fileId));
-        if (!file || !file->filePath)
-            co_return std::nullopt;
-        std::string binFile = co_await sender_.downloadFile(std::move(file->filePath.value()));
-        auto        base64Pr = utils::Base64::encode(binFile);
-        if (!base64Pr)
-            co_return std::nullopt;
-        co_return base64Pr.value();
-    }
-
-    asio::awaitable<void> processMessages(std::vector<TgBot::Message::Ptr> msgs)
-    {
-        std::cout << "Messages\n";
-        openai::AdditionalsToMessage adds;
-        std::string                  text;
-        openai::ChatIdType           chatId = 0;
-        for (const auto &msg : msgs)
-        {
-            if (msg->text)
-                text = std::move(msg->text.value());
-            if (msg->caption)
-                text = std::move(msg->caption.value());
-
-            if (msg->photo && !msg->photo->empty())
-            {
-                auto b64 = co_await addPhoto(msg->photo.value());
-                if (b64)
-                {
-                    std::cout << "Image!!!\n";
-                    openai::HistoryUtils::addPhotoToAdditionals(adds, std::move(b64.value()));
-                }
-            }
-            if (msg->chat)
-                chatId = msg->chat->id;
-        }
-        if (chatId == 0)
-            co_return;
-        std::cout << "Go!\n";
-        auto info = std::make_shared<core::OperationInfo>(chatId);
-        co_await operator_.processMessage(info, std::move(text), std::move(adds));
-    }
-
-    asio::awaitable<void> addMessages(std::vector<TgBot::Message::Ptr> msgs)
-    {
-        // TODO
-        (void)msgs;
-        co_return;
     }
 };
 
