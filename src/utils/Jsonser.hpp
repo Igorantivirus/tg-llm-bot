@@ -160,6 +160,47 @@ consteval std::array<FieldInfo, boost::pfr::tuple_size_v<S>> getNames()
     return array;
 }
 
+template <Enum E, E V>
+struct EnumTag
+{
+    using type = E;
+    static constexpr E value = V;
+};
+
+template <Enum E, E V>
+consteval auto enumNameImpl(int) -> decltype(jsonserEnumMetaMethod(EnumTag<E, V>{}))
+{
+    return jsonserEnumMetaMethod(EnumTag<E, V>{});
+}
+
+template <Enum E, E V>
+consteval FieldInfo enumNameImpl(long)
+{
+    return magic_enum::enum_name(V);
+}
+
+template <Enum E, E V>
+inline constexpr FieldInfo enumName = enumNameImpl<E, V>(0);
+
+template <Enum E>
+consteval auto getEnumNames()
+{
+    constexpr auto               count = magic_enum::enum_count<E>();
+    std::array<FieldInfo, count> array{};
+
+    auto one = [&array]<std::size_t I>(std::integral_constant<std::size_t, I>)
+    {
+        constexpr E v = magic_enum::enum_values<E>()[I];
+        array[I] = enumName<E, v>;
+    };
+    auto all = [&one]<std::size_t... Is>(std::index_sequence<Is...>)
+    {
+        (one(std::integral_constant<std::size_t, Is>{}), ...);
+    };
+    all(std::make_index_sequence<count>{});
+    return array;
+}
+
 enum class OnMissingValue : std::uint8_t
 {
     Exception,
@@ -233,12 +274,20 @@ private:
     {
         if (!j.is_string())
             throw std::logic_error("Enum in json must be string.");
-        std::string_view svValue = j.template get<std::string_view>();
 
-        auto value = magic_enum::enum_cast<E>(svValue);
-        if (!value.has_value())
-            throw std::logic_error("Invalid enum value " + std::string(svValue) + '.');
-        e = value.value();
+        const auto svValue = j.template get<std::string_view>();
+
+        static constexpr auto names = getEnumNames<E>();
+        static constexpr auto values = magic_enum::enum_values<E>();
+
+        for (std::size_t i = 0; i < names.size(); ++i)
+            if (names[i].has_value() && *names[i] == svValue)
+            {
+                e = values[i];
+                return;
+            }
+
+        throw std::logic_error("Invalid enum value " + std::string(svValue) + '.');
     }
     template <BasicJson J, Optional O>
     static constexpr void optionalFromJson(const J &j, O &o, O &def, const DeserializeSettings &setts)
@@ -356,10 +405,15 @@ private:
     template <BasicJson J, Enum E>
     static constexpr void enumToJson(J &j, const E &e)
     {
-        auto name = magic_enum::enum_name(e);
-        if (name.empty())
+        static constexpr auto names = getEnumNames<E>();
+
+        const auto index = magic_enum::enum_index(e);
+        if (!index.has_value())
             throw std::logic_error(std::string("Enum value is out of magic_enum support range. EnumType: ") + typeid(E).name() + ". EnumValue: " + std::to_string(static_cast<int>(e)));
-        j = name;
+        if (!names[*index].has_value())
+            throw std::logic_error(std::string("Enum value is marked as skipped. EnumType: ") + typeid(E).name() + ". EnumValue: " + std::to_string(static_cast<int>(e)));
+
+        j = std::string(*names[*index]);
     }
     template <BasicJson J, typename D>
     static constexpr void serializableToJson(J &j, const D &d)
@@ -411,6 +465,30 @@ private:
     consteval inline static jsonser::FieldInfo jsonserMetaMethod(jsonser::Tag<#FIELD>) \
     {                                                                                  \
         return std::nullopt;                                                           \
+    }
+#endif
+
+#ifndef JSONSER_ENUM
+#define JSONSER_ENUM(ENUM_TYPE, VALUE, NAME)                                                                 \
+    consteval inline jsonser::FieldInfo jsonserEnumMetaMethod(jsonser::EnumTag<ENUM_TYPE, ENUM_TYPE::VALUE>) \
+    {                                                                                                        \
+        return NAME;                                                                                         \
+    }
+#endif
+
+#ifndef JSONSER_ENUM_SKIP
+#define JSONSER_ENUM_SKIP(ENUM_TYPE, VALUE)                                                                  \
+    consteval inline jsonser::FieldInfo jsonserEnumMetaMethod(jsonser::EnumTag<ENUM_TYPE, ENUM_TYPE::VALUE>) \
+    {                                                                                                        \
+        return std::nullopt;                                                                                 \
+    }
+#endif
+
+#ifndef JSONSER_ENUM_FRIEND
+#define JSONSER_ENUM_FRIEND(ENUM_TYPE, VALUE, NAME)                                                          \
+    friend consteval jsonser::FieldInfo jsonserEnumMetaMethod(jsonser::EnumTag<ENUM_TYPE, ENUM_TYPE::VALUE>) \
+    {                                                                                                        \
+        return NAME;                                                                                         \
     }
 #endif
 
