@@ -33,7 +33,7 @@ public:
           bot_(config.token),
           redirector_(pool_, bot_.getApi()),
           sender_(redirector_),
-          presenter_(sender_, proc_, config.locale),
+          presenter_(sender_, config.locale),
 
           proc_(io_.get_executor(), std::move(config.defaultModel), config.defaultEffort, config.tcpSocketsCount, config.openAiUrl.host, config.openAiUrl.port),
           operator_(presenter_, proc_),
@@ -42,9 +42,9 @@ public:
           permReadWriter_(data_, config.accessRightsFile),
           editor(data_),
 
-          cmdProc_(operator_, editor, permReadWriter_, sender_, config.locale),
-          msgProc_(operator_, sender_),
-          queProc_(proc_, sender_, config.locale),
+          cmdProc_(sender_, operator_, config.locale, editor, permReadWriter_),
+          msgProc_(sender_, operator_),
+          queProc_(sender_, operator_, config.locale),
 
           checker_(data_),
 

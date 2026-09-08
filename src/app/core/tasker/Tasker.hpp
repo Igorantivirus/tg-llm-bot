@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openai/dto/ChatCompletions/Request.hpp"
 #include <boost/system/detail/error_code.hpp>
 #include <openai/ChatsProcessor.hpp>
 #include <utils/StreamGenerator.hpp>
@@ -21,52 +22,43 @@ public:
     {
     }
 
+    asio::awaitable<void> presentInfo(OperationInfo::Ptr info, InfoType type)
+    {
+        co_await presenter_.presentInfo(std::move(info), type);
+    }
+
+    // Управляющие
     asio::awaitable<void> stop(OperationInfo::Ptr info)
     {
         if (auto found = stopsSignals_.find(info->getChatId()); found != stopsSignals_.end())
+        {
             *found->second = true;
-        co_return;
-    }
-
-    asio::awaitable<void> setSystem(OperationInfo::Ptr info, std::string system)
-    {
-        if (system == "-")
-        {
-            proc_.settings().repo().setSystem(info->getChatId(), "");
-            co_await presenter_.presentInfo(std::move(info), InfoType::SystemPromtDropped);
-        }
-        else
-        {
-            proc_.settings().repo().setSystem(info->getChatId(), std::move(system));
-            co_await presenter_.presentInfo(std::move(info), InfoType::SystemPromtChanged);
+            co_await presenter_.presentInfo(std::move(info), InfoType::GenerationStopped);
         }
         co_return;
     }
-
-    asio::awaitable<void> getSystem(OperationInfo::Ptr info)
-    {
-        const auto &history = proc_.settings().repo().getHistoryById(info->getChatId());
-        co_await presenter_.presentSystem(info, history.system);
-    }
-
     asio::awaitable<void> clear(OperationInfo::Ptr info)
     {
         proc_.settings().repo().clearHostory(info->getChatId());
         co_await presenter_.presentInfo(std::move(info), InfoType::ContextCleared);
         co_return;
     }
-
-    asio::awaitable<void> models(OperationInfo::Ptr info)
+    // system
+    asio::awaitable<void> presentSystem(OperationInfo::Ptr info)
     {
-        const auto &models = proc_.settings().models();
-        co_await presenter_.presentModels(info, models);
+        const auto &history = proc_.settings().repo().getHistoryById(info->getChatId());
+        co_await presenter_.presentSystem(info, history.system);
     }
-
-    asio::awaitable<void> model(OperationInfo::Ptr info)
+    asio::awaitable<void> setSystem(OperationInfo::Ptr info, std::string system)
     {
-        co_await presenter_.presentModel(info, proc_.settings().repo().getHistoryById(info->getChatId()).model);
+        proc_.settings().repo().setSystem(info->getChatId(), std::move(system));
+        co_return;
     }
-
+    // models
+    asio::awaitable<void> presentModels(OperationInfo::Ptr info)
+    {
+        co_await presenter_.presentModels(info, proc_.settings().models(), proc_.settings().repo().getHistoryById(info->getChatId()).model);
+    }
     asio::awaitable<void> setModel(OperationInfo::Ptr info, std::string model)
     {
         if (!proc_.settings().models().contains(model))
@@ -75,14 +67,26 @@ public:
             proc_.settings().repo().setModel(info->getChatId(), std::move(model));
         co_return;
     }
-
+    // effort
+    asio::awaitable<void> presentEfforts(OperationInfo::Ptr info)
+    {
+        auto                                     values = magic_enum::enum_values<dto::ReasoningEffort>();
+        std::unordered_set<dto::ReasoningEffort> efforts = values | std::ranges::to<std::unordered_set<dto::ReasoningEffort>>();
+        co_await presenter_.presentEfforts(std::move(info), std::move(efforts), proc_.settings().repo().getHistoryById(info->getChatId()).effort);
+        co_return;
+    }
+    asio::awaitable<void> setEffort(OperationInfo::Ptr info, dto::ReasoningEffort effort)
+    {
+        proc_.settings().repo().setEffort(info->getChatId(), effort);
+        co_return;
+    }
+    // messages
     asio::awaitable<void> addMessage(OperationInfo::Ptr info, std::string msg, openai::AdditionalsToMessage adds)
     {
         dto::Message dto = openai::HistoryUtils::constructStartMessage(std::move(msg), std::move(adds));
         proc_.settings().repo().addDialogFragment(info->getChatId(), {std::move(dto)});
         co_return;
     }
-
     asio::awaitable<void> processMessage(OperationInfo::Ptr info, std::string msg, openai::AdditionalsToMessage adds)
     {
         auto gen = co_await proc_.chatCompletions(info->getChatId(), std::move(msg), std::move(adds));

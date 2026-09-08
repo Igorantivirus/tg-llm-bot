@@ -95,8 +95,8 @@ class MessagesProcessor
     };
 
 public:
-    MessagesProcessor(core::Operator &op, transport::TgBotMessageSender &sender)
-        : operator_(op), sender_(sender)
+    MessagesProcessor(transport::TgBotMessageSender &sender, core::Operator &op)
+        : sender_(sender), operator_(op)
     {
     }
 
@@ -161,8 +161,8 @@ public:
     }
 
 private:
-    core::Operator                &operator_;
     transport::TgBotMessageSender &sender_;
+    core::Operator                &operator_;
 
     std::unordered_map<std::string, MessageCollector::Ptr> collections_;
 
@@ -180,7 +180,7 @@ private:
         co_return base64Pr.value();
     }
 
-    asio::awaitable<void> appendSendDataFromMessage(std::string &text, openai::AdditionalsToMessage &adds, openai::ChatIdType& chatId, TgBot::Message::Ptr msg)
+    asio::awaitable<void> appendSendDataFromMessage(std::string &text, openai::AdditionalsToMessage &adds, openai::ChatIdType &chatId, TgBot::Message::Ptr msg)
     {
         if (msg->text)
             text = std::move(msg->text.value());

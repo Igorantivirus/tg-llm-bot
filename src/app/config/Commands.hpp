@@ -18,6 +18,7 @@ struct AllCommands
     Command system;
     Command model;
     Command models;
+    Command effort;
     Command make_admin;
     Command remove_admin;
     Command ban_user;

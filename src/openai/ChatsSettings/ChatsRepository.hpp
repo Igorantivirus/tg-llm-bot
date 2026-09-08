@@ -21,6 +21,11 @@ public:
         histories_[id].model = std::move(model);
     }
 
+    void setEffort(const ChatIdType id, dto::ReasoningEffort effort)
+    {
+        histories_[id].effort = std::move(effort);
+    }
+
     void setSystem(const ChatIdType id, std::string system)
     {
         histories_[id].system = std::move(system);

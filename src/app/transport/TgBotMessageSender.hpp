@@ -59,6 +59,15 @@ public:
         co_return;
     }
 
+    asio::awaitable<void> deleteMessage(const app::ChatId chat, const app::MessId mess)
+    {
+        std::ignore = co_await redirector_.call([chat, mess](const TgBot::Api &api) -> void
+        {
+            api.deleteMessage(chat, mess);
+        });
+        co_return;
+    }
+
     asio::awaitable<void> sendCommands(std::vector<TgBot::BotCommand::Ptr> commands)
     {
         std::ignore = co_await redirector_.call([commands = std::move(commands)](const TgBot::Api &api) -> void

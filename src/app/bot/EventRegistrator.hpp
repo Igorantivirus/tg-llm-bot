@@ -86,20 +86,20 @@ public:
         setedQueryCallBack_ = true;
     }
 
-    void registrateMessageAddress(MessageHandler handler)
+    void registrateMessageAddress(MessageHandler handler, Permission permission)
     {
-        auto lambda = [this, handler = std::move(handler)](TgBot::Message::Ptr msg)
+        auto lambda = [this, handler = std::move(handler), permission = std::move(permission)](TgBot::Message::Ptr msg)
         {
-            if (isAddressToMe(msg, this->me_))
+            if (isAddressToMe(msg, this->me_) && (this->checker_.*permission)(msg->chat->type, msg->chat->id, msg->from->id))
                 boost::asio::co_spawn(this->ex_, (this->msgProc_.*handler)(std::move(msg)), boost::asio::detached);
         };
         bot_.getEvents().onNonCommandMessage(lambda);
     }
-    void registrateMessageInChat(MessageHandler handler)
+    void registrateMessageInChat(MessageHandler handler, Permission permission)
     {
-        auto lambda = [this, handler = std::move(handler)](TgBot::Message::Ptr msg)
+        auto lambda = [this, handler = std::move(handler), permission = std::move(permission)](TgBot::Message::Ptr msg)
         {
-            if (!isAddressToMe(msg, this->me_))
+            if (!isAddressToMe(msg, this->me_) && (this->checker_.*permission)(msg->chat->type, msg->chat->id, msg->from->id))
                 boost::asio::co_spawn(this->ex_, (this->msgProc_.*handler)(std::move(msg)), boost::asio::detached);
         };
         bot_.getEvents().onNonCommandMessage(lambda);

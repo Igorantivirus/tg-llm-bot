@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openai/dto/ChatCompletions/Request.hpp"
 #include <unordered_set>
 
 #include <utils/StreamGenerator.hpp>
@@ -18,8 +19,9 @@ public:
     virtual asio::awaitable<void> presentInfo(OperationInfo::Ptr, const InfoType) = 0;
     virtual asio::awaitable<void> presentError(OperationInfo::Ptr, const utils::ErrorCode) = 0;
 
-    virtual asio::awaitable<void> presentModels(OperationInfo::Ptr, std::unordered_set<std::string>) = 0;
-    virtual asio::awaitable<void> presentModel(OperationInfo::Ptr, std::string) = 0;
+    virtual asio::awaitable<void> presentModels(OperationInfo::Ptr, std::unordered_set<std::string>, std::string) = 0;
+    virtual asio::awaitable<void> presentEfforts(OperationInfo::Ptr, std::unordered_set<dto::ReasoningEffort>, dto::ReasoningEffort) = 0;
+
     virtual asio::awaitable<void> presentSystem(OperationInfo::Ptr, std::string) = 0;
 };
 } // namespace core

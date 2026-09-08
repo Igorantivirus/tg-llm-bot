@@ -18,47 +18,52 @@ namespace handlers
 class CommandsProcessor
 {
 public:
-    CommandsProcessor(core::Operator &op, permissions::Editor &editor, permissions::ReadWriter &readwriter, transport::TgBotMessageSender &sender, config::Locale locale)
-        : operator_(op), editor_(editor), readwriter_(readwriter), sender_(sender), locale_(std::move(locale))
+    CommandsProcessor(transport::TgBotMessageSender &sender, core::Operator &op, config::Locale locale, permissions::Editor &editor, permissions::ReadWriter &readwriter)
+        : sender_(sender), operator_(op), locale_(std::move(locale)), editor_(editor), readwriter_(readwriter)
     {
     }
-
-    asio::awaitable<void> clearCommand(std::vector<std::string>, TgBot::Message::Ptr msg)
+    //==========================
+    // Управляющие вызовы
+    //==========================
+    asio::awaitable<void> clear(std::vector<std::string>, TgBot::Message::Ptr msg)
     {
         core::OperationInfo::Ptr info = std::make_shared<core::OperationInfo>(msg->chat->id);
         co_await operator_.clear(info);
     }
-    boost::asio::awaitable<void> stopCommand(std::vector<std::string>, TgBot::Message::Ptr msg)
+    boost::asio::awaitable<void> stop(std::vector<std::string>, TgBot::Message::Ptr msg)
     {
         core::OperationInfo::Ptr info = std::make_shared<core::OperationInfo>(msg->chat->id);
         co_await operator_.stop(info);
     }
-    boost::asio::awaitable<void> stopAllCommand(std::vector<std::string>, TgBot::Message::Ptr msg)
+    boost::asio::awaitable<void> stopAll(std::vector<std::string>, TgBot::Message::Ptr msg)
     {
         core::OperationInfo::Ptr info = std::make_shared<core::OperationInfo>(msg->chat->id);
         co_await operator_.stopAll(info);
     }
-    boost::asio::awaitable<void> modelsCommand(std::vector<std::string>, TgBot::Message::Ptr msg)
+    //==========================
+    // Задачи
+    //==========================
+    boost::asio::awaitable<void> model(std::vector<std::string>, TgBot::Message::Ptr msg)
     {
         core::OperationInfo::Ptr info = std::make_shared<core::OperationInfo>(msg->chat->id);
-        co_await operator_.models(info);
+        co_await operator_.presentModels(info);
     }
-    boost::asio::awaitable<void> modelCommand(std::vector<std::string> args, TgBot::Message::Ptr msg)
+    boost::asio::awaitable<void> effort(std::vector<std::string> args, TgBot::Message::Ptr msg)
     {
         core::OperationInfo::Ptr info = std::make_shared<core::OperationInfo>(msg->chat->id);
-        if (args.size() == 1)
-            co_await operator_.setModel(info, std::move(args[0]));
-        co_await operator_.model(info);
+        co_await operator_.presentEfforts(std::move(info));
     }
-    boost::asio::awaitable<void> systemCommand(std::vector<std::string> args, TgBot::Message::Ptr msg)
+    boost::asio::awaitable<void> system(std::vector<std::string> args, TgBot::Message::Ptr msg)
     {
         core::OperationInfo::Ptr info = std::make_shared<core::OperationInfo>(msg->chat->id);
         if (args.size() == 1)
             co_await operator_.setSystem(info, std::move(args[0]));
         else
-            co_await operator_.getSystem(info);
+            co_await operator_.presentSystem(info);
     }
-
+    //==========================
+    // Изменение доступа
+    //==========================
     boost::asio::awaitable<void> makeAdmin(std::vector<std::string> args, TgBot::Message::Ptr msg)
     {
         co_await applyEdit(std::move(args), std::move(msg), &permissions::Editor::makeAdmin);
@@ -93,12 +98,12 @@ public:
     }
 
 private:
-    core::Operator                &operator_;
-    permissions::Editor           &editor_;
-    permissions::ReadWriter       &readwriter_;
     transport::TgBotMessageSender &sender_;
+    core::Operator                &operator_;
+    config::Locale                 locale_;
 
-    config::Locale locale_;
+    permissions::Editor     &editor_;
+    permissions::ReadWriter &readwriter_;
 
 private:
     using EditMethod = bool (permissions::Editor::*)(const app::UserId);
