@@ -16,6 +16,7 @@ enum class Error : std::uint8_t
     ToolError,
     LegacyFinishReason,
     InvalidRequestedType,
+    UnsoportedStream,
     Unknown
 };
 constexpr const std::array<const char *, static_cast<std::size_t>(Error::Unknown) + 1> errorNames = {
@@ -29,6 +30,7 @@ constexpr const std::array<const char *, static_cast<std::size_t>(Error::Unknown
     "Internal tool error",
     "Legacy finish reason was polled",
     "Invalid requested type in dto::MessageResponseValue",
+    "Streaming unsoported yet",
     "Unknown"};
 } // namespace openai
 

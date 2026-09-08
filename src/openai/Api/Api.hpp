@@ -8,6 +8,9 @@
 #include <openai/api/ApiResponseGenerator.hpp>
 #include <openai/dto/ChatCompletions/Request.hpp>
 #include <openai/dto/ChatCompletions/Response.hpp>
+#include <openai/dto/Image/EditImageRequest.hpp>
+#include <openai/dto/Image/GenerateImageRequest.hpp>
+#include <openai/dto/Image/ImageResponse.hpp>
 #include <openai/dto/ModelsResponse.hpp>
 
 namespace openai
@@ -36,9 +39,30 @@ public:
             co_return std::unexpected(res.error());
         auto resp = std::move(res.value());
         if (resp.isStreaming())
-            co_return std::unexpected(Error::EmptyModels);
+            co_return std::unexpected(Error::UnsoportedStream);
 
         co_return utils::deserialize<dto::ModelsResponse>(resp.stringBody());
+    }
+
+    utils::AsyncResult<dto::ImageResponse> imagesGeneration(dto::GenerateImageRequest dto)
+    {
+        net::BeastRequest req(http::verb::post, "/v1/images/generations", 11);
+        if (auto sdto = utils::serialize(dto); sdto)
+            req.body() = sdto.value();
+        else
+            co_return std::unexpected(sdto.error());
+        initRequestFields(req);
+
+        auto res = co_await http_.request(host_, port_, std::move(req));
+        if (!res)
+            co_return std::unexpected(res.error());
+        auto resp = std::move(res.value());
+        if (resp.header.result_int() / 100 != 2)
+            co_return std::unexpected(Error::FromServer);
+
+        if (resp.isStreaming())
+            co_return std::unexpected(Error::UnsoportedStream);
+        co_return utils::deserialize<dto::ImageResponse>(resp.stringBody());
     }
 
     utils::AsyncResult<ApiResponseGenerator> chatCompletions(dto::ChatCompletionsRequest dto)
