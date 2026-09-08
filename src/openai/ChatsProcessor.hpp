@@ -52,6 +52,15 @@ public:
         co_return AssistantMessagesGenerator(api_, chatId, std::move(startmsg), setts_);
     }
 
+    Api &getApi()
+    {
+        return api_;
+    }
+    const Api &getApi() const
+    {
+        return api_;
+    }
+
 private:
     Api           api_;
     ChatsSettings setts_;

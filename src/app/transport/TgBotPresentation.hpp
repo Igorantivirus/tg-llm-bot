@@ -1,5 +1,7 @@
 #pragma once
 
+#include "openai/dto/Image/ImageEnums.hpp"
+#include "openai/messagegenerators/AssistentMessage.hpp"
 #include <string>
 
 #include <boost/asio/awaitable.hpp>
@@ -11,6 +13,7 @@
 #include <app/transport/presentation/ChatAction.hpp>
 #include <app/transport/presentation/KeyBoardGenerate.hpp>
 #include <app/transport/presentation/MarkdownV2.hpp>
+#include <openai/Tools/DefaultTools/CreateImage.hpp>
 #include <utils/Format.hpp>
 
 namespace transport
@@ -23,7 +26,7 @@ public:
     {
     }
 
-    asio::awaitable<void> presentMessage(core::OperationInfo::Ptr info, utils::StreamGenerator<std::string> &gen) override
+    asio::awaitable<void> presentMessage(core::OperationInfo::Ptr info, utils::StreamGenerator<openai::AssistentMessage> &gen) override
     {
         const app::ChatId chatId = info->getChatId();
 
@@ -36,7 +39,9 @@ public:
 
         while (auto next = co_await gen.next())
         {
-            accum += *next;
+            if (!next->toolCallResult.empty())
+                co_await processTools(next->toolCallResult, chatId);
+            accum += next->content;
             while (accum.size() > maxMessageSize_)
             {
                 const std::size_t cut = cutSize(accum);
@@ -93,6 +98,28 @@ private:
     std::size_t chunkMessageSize_ = 200;
 
 private:
+    asio::awaitable<void> processTools(const std::vector<openai::ToolResult::Ptr> &tools, const app::ChatId chatId)
+    {
+        for (auto &tool : tools)
+        {
+            if (tool->calledFunction() == openai::CreateImageToolResult::calledFunctionName)
+            {
+                openai::CreateImageToolResult *ptr = tool->to<openai::CreateImageToolResult>();
+                if (!ptr)
+                    continue;
+                const auto &dto = ptr->getDto();
+                if (!dto.data)
+                    continue;
+                for (const auto &img : dto.data.value())
+                {
+                    if (img.b64_json)
+                        co_await sender_.sendPhotob64(chatId, img.b64_json.value(), dto.output_format ? dto.output_format.value() : dto::ImageOutputFormat::jpeg);
+                }
+            }
+        }
+        co_return;
+    }
+
     asio::awaitable<bool> editOrSend(const app::ChatId chatId, app::MessId &msgId, const std::string &text, const bool md)
     {
         if (msgId != 0)

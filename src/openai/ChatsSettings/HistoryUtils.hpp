@@ -46,7 +46,9 @@ public:
                 return pair.second->dto();
             }) | std::views::filter([&history](const dto::Tool &tool) -> bool
             {
-                return history.allowTools.count(tool.function.name) > 0;
+                return true;
+                // TODO: CHANGE
+                // return history.allowTools.count(tool.function.name) > 0;
             }) | std::ranges::to<std::vector<dto::Tool>>();
         if (!setts.stops().empty())
             req.stop = setts.stops() | std::ranges::to<std::vector<std::string>>();

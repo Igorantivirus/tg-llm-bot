@@ -1,7 +1,9 @@
 #pragma once
 
+#include "utils/Base64.hpp"
 #include <string>
 #include <tgbot/Api.h>
+#include <tgbot/InputFile.h>
 #include <tgbot/Types.h>
 #include <tuple>
 
@@ -11,6 +13,7 @@
 #include <app/Types.hpp>
 #include <app/transport/TgBotApiRedirector.hpp>
 #include <app/transport/presentation/ChatAction.hpp>
+#include <openai/dto/Image/ImageEnums.hpp>
 
 namespace transport
 {
@@ -76,7 +79,23 @@ public:
         });
         co_return;
     }
+    asio::awaitable<void> sendPhotob64(app::ChatId id, const std::string &base64Photo, dto::ImageOutputFormat format)
+    {
+        auto res = co_await redirector_.call([id, base64Photo = &base64Photo, format](const TgBot::Api &api) -> void
+        {
+            auto bytes = utils::Base64::decode(*base64Photo);
+            if (!bytes)
+                return;
+            std::string mimeType = (format == dto::ImageOutputFormat::png) ? "image/png" : ((format == dto::ImageOutputFormat::webp) ? "image/webp" : "image/jpeg");
 
+            auto inputFile = std::make_shared<TgBot::InputFile>();
+            inputFile->data = std::move(bytes.value());
+            inputFile->mimeType = mimeType;
+            inputFile->fileName = "image." + std::string(magic_enum::enum_name(format));
+
+            api.sendPhoto(id, std::move(inputFile));
+        });
+    }
     asio::awaitable<TgBot::File::Ptr> getFile(std::string fileId)
     {
         auto res = co_await redirector_.call([fileId = std::move(fileId)](const TgBot::Api &api) -> TgBot::File::Ptr

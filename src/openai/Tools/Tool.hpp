@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ToolResult.hpp"
 #include <memory>
 #include <string>
 
@@ -18,7 +19,7 @@ public:
 public:
     virtual ~Tool() = default;
 
-    virtual utils::AsyncResult<std::string> run(std::string args) = 0;
+    virtual utils::AsyncResult<ToolResult::Ptr> run(std::string args) = 0;
 
     virtual std::string         name() const = 0;
     virtual std::string         description() const = 0;

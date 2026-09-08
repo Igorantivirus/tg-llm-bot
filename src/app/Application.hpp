@@ -1,6 +1,9 @@
 #pragma once
 
 #include "handlers/QueryProcessor.hpp"
+#include "openai/Tools/DefaultTools/CreateImage.hpp"
+#include "openai/Tools/Tool.hpp"
+#include "utils/Types.hpp"
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/thread_pool.hpp>
 
@@ -20,6 +23,8 @@
 #include <app/bot/BotCustomizer.hpp>
 #include <app/bot/EventRegistrator.hpp>
 #include <app/bot/PermissionChecker.hpp>
+#include <exception>
+#include <memory>
 
 namespace app
 {
@@ -53,7 +58,13 @@ public:
           cmnds_(std::move(config.commands))
     {
         permReadWriter_.read();
-        asio::co_spawn(io_.get_executor(), proc_.initModels(), asio::detached);
+        asio::co_spawn(io_.get_executor(), proc_.initModels(), [](std::exception_ptr ex, utils::SyncResult<const std::unordered_set<std::string> *> res)
+        {
+            if(!res)
+                std::cout << "Error init models: " << res.error().message() << '\n';
+        });
+
+        proc_.addTool(std::make_unique<openai::CreateImage>(proc_.getApi()));
     }
 
     int run()

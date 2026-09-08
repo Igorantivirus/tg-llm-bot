@@ -1,13 +1,43 @@
 #pragma once
 
+#include "openai/Tools/ToolResult.hpp"
 #include "openai/api/Api.hpp"
 #include "openai/dto/ChatCompletions/JsonSchema.hpp"
 #include "utils/NonNullCopybleUniquePtr.hpp"
+#include <memory>
 #include <openai/Tools/Tool.hpp>
 #include <utils/Parser.hpp>
 
 namespace openai
 {
+class CreateImageToolResult : public ToolResult
+{
+public:
+    static inline const std::string calledFunctionName = "create_image";
+
+public:
+    CreateImageToolResult(dto::ImageResponse dto)
+        : ToolResult(calledFunctionName), dto_(std::move(dto))
+    {
+    }
+
+    std::string toString() const override
+    {
+        auto resp = utils::serialize(dto_);
+        if (!resp)
+            return resp.error().message();
+        return resp.value();
+    }
+
+    const dto::ImageResponse &getDto() const
+    {
+        return dto_;
+    }
+
+private:
+    dto::ImageResponse dto_;
+};
+
 class CreateImage : public Tool
 {
 public:
@@ -24,7 +54,7 @@ public:
     };
     struct Params
     {
-        std::string     promt;
+        std::string     prompt;
         ActionType      action = ActionType::generate;
         AspectRatioType aspect_ratio = AspectRatioType::square;
         unsigned short  image_count = 1;
@@ -36,7 +66,7 @@ public:
     {
     }
 
-    utils::AsyncResult<std::string> run(std::string args) override
+    utils::AsyncResult<ToolResult::Ptr> run(std::string args) override
     {
         auto dto = utils::deserialize<Params>(args);
         if (!dto)
@@ -44,26 +74,23 @@ public:
         Params params = std::move(dto.value());
 
         dto::GenerateImageRequest req;
-        req.prompt = std::move(params.promt);
+        req.prompt = std::move(params.prompt);
         req.n = params.image_count;
-        req.model = "qwen-edit-nsfw";
+        req.model = "qwen-edit-nsfw"; // TODO: make change model
 
         auto res = co_await api_.imagesGeneration(std::move(req));
         if (!res)
             co_return std::unexpected(res.error());
 
-        auto resp = utils::serialize(res.value());
-        if (!resp)
-            co_return std::unexpected(resp.error());
-        co_return resp.value();
+        co_return std::make_shared<CreateImageToolResult>(std::move(res.value()));
     }
     std::string name() const override
     {
-        return "create_image";
+        return CreateImageToolResult::calledFunctionName;
     }
     std::string description() const override
     {
-        return "Create image";
+        return "Generate a new image or edit the most recent image in the conversation.";
     }
     std::optional<dto::schema::Object> parameters() const override
     {

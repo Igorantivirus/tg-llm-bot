@@ -1,5 +1,7 @@
 #pragma once
 
+#include "AssistentMessage.hpp"
+#include <iterator>
 #include <openai/Api/Api.hpp>
 #include <openai/ChatsSettings/ChatsSettings.hpp>
 #include <openai/ChatsSettings/HistoryUtils.hpp>
@@ -10,7 +12,7 @@
 namespace openai
 {
 
-class AssistantMessagesGenerator : public utils::StreamGenerator<std::string>
+class AssistantMessagesGenerator : public utils::StreamGenerator<AssistentMessage>
 {
 public:
     AssistantMessagesGenerator(Api &api, const ChatIdType chatId, dto::Message msg, ChatsSettings &setts)
@@ -45,7 +47,7 @@ private:
     }
 
     // Возаращает строку ответ
-    utils::AsyncResult<std::string> nextImpl() override
+    utils::AsyncResult<AssistentMessage> nextImpl() override
     {
         if (!apiGen_)
         {
@@ -58,25 +60,27 @@ private:
             dto::ChatCompletionsResponse resp = std::move(next.value());
             std::optional<std::string>   content = dto::Utils::findContent(resp);
 
-            accumulator_.accumulate(std::move(resp));
+            AssistentMessage response = accumulator_.accumulate(std::move(resp));
 
             if (accumulator_.isFinish()) // если конец - его надо обработать
             {
-                if (auto finistRes = co_await processFinish(); !finistRes)
+                if (auto finistRes = co_await processFinish(response); !finistRes)
                     co_return std::unexpected(finistRes.error());
             }
-            if (content)
-                co_return content.value();
+            if (!response.empty())
+                co_return response;
         }
 
         co_return std::unexpected(apiGen_->endReason());
     }
 
-    utils::AsyncResult<void> processFinish()
+    utils::AsyncResult<void> processFinish(AssistentMessage &message)
     {
         if (dto::FinishReason reason = accumulator_.getReason(); reason == dto::FinishReason::tool_calls)
         {
-            accumulator_.addMessages(co_await tcler_.callsTools(accumulator_.getLastMessage()));
+            auto [frags, results] = co_await tcler_.callsTools(accumulator_.getLastMessage());
+            accumulator_.addMessages(std::move(frags));
+            message.toolCallResult.insert(message.toolCallResult.end(), std::make_move_iterator(results.begin()), std::make_move_iterator(results.end()));
             if (auto initRes = co_await initApiGen(); !initRes) // Продолжаем генерацию
                 co_return std::unexpected(initRes.error());
         }

@@ -6,7 +6,7 @@
 
 namespace core
 {
-class StopableGenerator : public utils::StreamGenerator<std::string>, public utils::NoMovable
+class StopableGenerator : public utils::StreamGenerator<openai::AssistentMessage>, public utils::NoMovable
 {
 public:
     StopableGenerator(openai::AssistantMessagesGenerator gen, const std::shared_ptr<bool> stop)
@@ -19,7 +19,7 @@ private:
     const std::shared_ptr<bool>        stop_;
 
 private:
-    utils::AsyncResult<std::string> nextImpl() override
+    utils::AsyncResult<openai::AssistentMessage> nextImpl() override
     {
         if (*stop_)
             co_return endOfStream;

@@ -4,6 +4,7 @@
 #include <ranges>
 #include <stdexcept>
 
+#include "AssistentMessage.hpp"
 #include <openai/ChatsSettings/ChatsSettings.hpp>
 #include <openai/dto/ChatCompletions/Message.hpp>
 #include <openai/dto/ChatCompletions/Response.hpp>
@@ -24,28 +25,31 @@ public:
         accumFragment_.insert(accumFragment_.end(), std::make_move_iterator(msg.begin()), std::make_move_iterator(msg.end()));
     }
 
-    void accumulate(dto::ChatCompletionsResponse resp)
+    AssistentMessage accumulate(dto::ChatCompletionsResponse resp)
     {
         if (resp.choices.size() != 1)
-            return;
+            return {};
         dto::Choice           choice = std::move(resp.choices[0]);
         dto::ResponseMessage *msg = choice.message ? &(choice.message.value()) : (choice.delta ? &choice.delta.value() : nullptr);
         if (!msg)
-            return;
+            return {};
 
         reason_ = std::nullopt;
 
+        AssistentMessage result;
+
         if (msg->content)
-            content_ += std::move(msg->content.value());
+            content_ += (result.content = std::move(msg->content.value()));
         if (msg->reasoning_content)
-            reasoningContent_ += std::move(msg->reasoning_content.value());
+            reasoningContent_ += (result.reasoning = std::move(msg->reasoning_content.value()));
         if (msg->refusal)
             refusal_ += std::move(msg->refusal.value());
         if (msg->tool_calls)
-            std::for_each_n(msg->tool_calls->begin(), msg->tool_calls->size(), utils::buildMethod(&AssistantMessagesAccumulator::accumulateTool, this));
+            (result.toolCalling = true), std::for_each_n(msg->tool_calls->begin(), msg->tool_calls->size(), utils::buildMethod(&AssistantMessagesAccumulator::accumulateTool, this));
 
         if (choice.finish_reason)
             finish(choice.finish_reason.value());
+        return result;
     }
 
     bool isFinish()
