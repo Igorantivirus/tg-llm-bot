@@ -7,8 +7,10 @@ namespace utils
 enum class Error : std::uint8_t
 {
     EndOfStreamData,
+    SizeNotDevidedBy4,
     TooLongDataSize,
     EncodeError,
+    DecodeError,
     JsonserSerialize,
     JsonserDeserialize,
     NlohmannParsing,
@@ -17,8 +19,10 @@ enum class Error : std::uint8_t
 };
 constexpr std::array<const char *, static_cast<std::size_t>(Error::Unknown) + 1> errorNames = {
     "End of data from stream",
+    "Base 64 string size must be devided by 4",
     "Input too large for EVP_EncodeBlock",
     "EVP_EncodeBlock failed",
+    "EVP_DecodeBlock failed",
     "Serialisation in jsonser",
     "Deserialisation in jsonser",
     "Json parsing",
