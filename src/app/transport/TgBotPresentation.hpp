@@ -1,13 +1,16 @@
 #pragma once
 
-#include "app/transport/TgBotMessageSender.hpp"
-#include "magic_enum/magic_enum.hpp"
-#include "openai/ChatsProcessor.hpp"
-#include "presentation/KeyBoardGenerate.hpp"
 #include <string>
+
+#include <boost/asio/awaitable.hpp>
+#include <magic_enum/magic_enum.hpp>
 
 #include <app/config/Locale.hpp>
 #include <app/core/Presentation/Presenter.hpp>
+#include <app/transport/TgBotMessageSender.hpp>
+#include <app/transport/presentation/ChatAction.hpp>
+#include <app/transport/presentation/KeyBoardGenerate.hpp>
+#include <app/transport/presentation/MarkdownV2.hpp>
 #include <utils/Format.hpp>
 
 namespace transport
@@ -15,40 +18,48 @@ namespace transport
 class TgBotPresentation : public core::Presenter
 {
 public:
-    TgBotPresentation(TgBotMessageSender &sender, openai::ChatsProcessor &proc, config::Locale locale)
-        : sender_(sender), proc_(proc), locale_(std::move(locale))
+    TgBotPresentation(TgBotMessageSender &sender, config::Locale locale)
+        : sender_(sender), locale_(std::move(locale))
     {
     }
 
     asio::awaitable<void> presentMessage(core::OperationInfo::Ptr info, utils::StreamGenerator<std::string> &gen) override
     {
-        TgBot::Message::Ptr msg = co_await sender_.sendMessage(info->getChatId(), locale_.thinking);
-        if (!msg)
-            co_return;
-        co_await sender_.sendAction(info->getChatId(), transport::ChatAction::typing);
-        std::size_t  lastSize = 0;
-        std::string  accum;
-        std::int64_t msgId = msg->messageId;
+        const app::ChatId chatId = info->getChatId();
+
+        app::MessId   msgId = 0;
+        std::string   accum;
+        std::size_t   sent = 0;
+        MarkdownState state;
+
+        std::ignore = sender_.sendAction(chatId, transport::ChatAction::typing);
 
         while (auto next = co_await gen.next())
         {
             accum += *next;
-            if (accum.size() > lastSize + prSize_)
+            while (accum.size() > maxMessageSize_)
             {
-                lastSize = accum.size();
-                std::ignore = co_await sender_.editMessage(info->getChatId(), msgId, accum);
+                const std::size_t cut = cutSize(accum);
+                std::string       tail = accum.substr(cut);
+                accum.resize(cut);
+                co_await finish(chatId, msgId, accum, state);
+                msgId = 0;
+                accum = std::move(tail);
+                sent = 0;
             }
+            if (accum.size() >= sent + chunkMessageSize_ && co_await editOrSend(chatId, msgId, accum, false))
+                sent = accum.size();
         }
+
         if (gen.isError())
             accum += '\n' + utils::Format::format(locale_.error, gen.endReason().message());
-        if (accum.size() != lastSize && lastSize != 0)
-            std::ignore = co_await sender_.editMessage(info->getChatId(), msgId, std::move(accum));
-
+        if (!accum.empty())
+            co_await finish(chatId, msgId, accum, state);
         co_return;
     }
-    asio::awaitable<void> presentInfo(core::OperationInfo::Ptr info, const core::InfoType msgInfo) override
+    asio::awaitable<void> presentInfo(core::OperationInfo::Ptr info, const core::InfoType type) override
     {
-        std::ignore = co_await sender_.sendMessage(info->getChatId(), utils::Format::format(locale_.info, infoToString(msgInfo)));
+        std::ignore = co_await sender_.sendMessage(info->getChatId(), utils::Format::format(locale_.info, infoToString(type)));
         co_return;
     }
     asio::awaitable<void> presentError(core::OperationInfo::Ptr info, const utils::ErrorCode err) override
@@ -56,17 +67,16 @@ public:
         std::ignore = co_await sender_.sendMessage(info->getChatId(), utils::Format::format(locale_.error, err.to_string()));
         co_return;
     }
-
-    asio::awaitable<void> presentModels(core::OperationInfo::Ptr info, std::unordered_set<std::string> models) override
+    asio::awaitable<void> presentModels(core::OperationInfo::Ptr info, std::unordered_set<std::string> models, std::string curModel) override
     {
-        std::string                      msg = utils::Format::format(locale_.currentModel, proc_.settings().repo().getHistoryById(info->getChatId()).model);
-        TgBot::InlineKeyboardMarkup::Ptr kb = KeyBoardGenerate::generateForModels(proc_.settings().models(), info->getChatId());
-        std::ignore = co_await sender_.sendMessage(info->getChatId(), std::move(msg), std::move(kb));
+        TgBot::InlineKeyboardMarkup::Ptr kb = KeyBoardGenerate::generateForModels(models, curModel);
+        std::ignore = co_await sender_.sendMessage(info->getChatId(), "Выберите модель", std::move(kb));
         co_return;
     }
-    asio::awaitable<void> presentModel(core::OperationInfo::Ptr info, std::string model) override
+    asio::awaitable<void> presentEfforts(core::OperationInfo::Ptr info, std::unordered_set<dto::ReasoningEffort> efforts, dto::ReasoningEffort curEff) override
     {
-        std::ignore = co_await sender_.sendMessage(info->getChatId(), utils::Format::format(locale_.modelHelp, model));
+        TgBot::InlineKeyboardMarkup::Ptr kb = KeyBoardGenerate::generateForEfforts(efforts, curEff);
+        std::ignore = co_await sender_.sendMessage(info->getChatId(), "Выберите effort (на сколько хорошо модель будет думать)", std::move(kb));
         co_return;
     }
     asio::awaitable<void> presentSystem(core::OperationInfo::Ptr info, std::string system) override
@@ -76,13 +86,43 @@ public:
     }
 
 private:
-    TgBotMessageSender     &sender_;
-    openai::ChatsProcessor &proc_;
+    TgBotMessageSender &sender_;
+    config::Locale      locale_;
 
-    config::Locale locale_;
-    std::size_t    prSize_ = 200;
+    std::size_t maxMessageSize_ = 3000;
+    std::size_t chunkMessageSize_ = 200;
 
 private:
+    asio::awaitable<bool> editOrSend(const app::ChatId chatId, app::MessId &msgId, const std::string &text, const bool md)
+    {
+        if (msgId != 0)
+            co_return static_cast<bool>(co_await sender_.editMessage(chatId, msgId, text, nullptr, md));
+        TgBot::Message::Ptr msg = co_await sender_.sendMessage(chatId, text, nullptr, md);
+        if (!msg)
+            co_return false;
+        msgId = msg->messageId;
+        co_return true;
+    }
+    asio::awaitable<void> finish(const app::ChatId chatId, app::MessId msgId, const std::string &text, MarkdownState &state)
+    {
+        const std::string md = MarkdownV2::convert(text, state);
+        if (co_await editOrSend(chatId, msgId, md, true))
+            co_return;
+        std::ignore = co_await editOrSend(chatId, msgId, text, false);
+        co_return;
+    }
+
+    std::size_t cutSize(const std::string &text) const
+    {
+        if (const std::size_t nl = text.rfind('\n', maxMessageSize_); nl != std::string::npos && nl > maxMessageSize_ / 2)
+            return nl + 1;
+
+        std::size_t cut = maxMessageSize_;
+        // Продолжения многобайтового символа имеют вид 10xxxxxx.
+        while (cut > 0 && (static_cast<unsigned char>(text[cut]) & 0xC0) == 0x80)
+            --cut;
+        return cut;
+    }
     std::string infoToString(const core::InfoType info)
     {
         std::string name(magic_enum::enum_name(info));
