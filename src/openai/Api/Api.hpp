@@ -46,23 +46,12 @@ public:
 
     utils::AsyncResult<dto::ImageResponse> imagesGeneration(dto::GenerateImageRequest dto)
     {
-        net::BeastRequest req(http::verb::post, "/v1/images/generations", 11);
-        if (auto sdto = utils::serialize(dto); sdto)
-            req.body() = sdto.value();
-        else
-            co_return std::unexpected(sdto.error());
-        initRequestFields(req);
+        co_return co_await imagesRequest("/v1/images/generations", std::move(dto));
+    }
 
-        auto res = co_await http_.request(host_, port_, std::move(req));
-        if (!res)
-            co_return std::unexpected(res.error());
-        auto resp = std::move(res.value());
-        if (resp.header.result_int() / 100 != 2)
-            co_return std::unexpected(Error::FromServer);
-
-        if (resp.isStreaming())
-            co_return std::unexpected(Error::UnsoportedStream);
-        co_return utils::deserialize<dto::ImageResponse>(resp.stringBody());
+    utils::AsyncResult<dto::ImageResponse> imagesEdit(dto::EditImageRequest dto)
+    {
+        co_return co_await imagesRequest("/v1/images/edits", std::move(dto));
     }
 
     utils::AsyncResult<ApiResponseGenerator> chatCompletions(dto::ChatCompletionsRequest dto)
@@ -120,6 +109,34 @@ private:
         int res;
         auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.size(), res);
         return ec == std::errc{} && ptr == s.data() + s.size();
+    }
+
+private:
+    /// @brief Общее тело для images-эндпоинтов: генерация и редактирование
+    /// отличаются только путём и типом запроса.
+    template <typename Dto>
+    utils::AsyncResult<dto::ImageResponse> imagesRequest(const std::string_view path, Dto dto)
+    {
+        net::BeastRequest req(http::verb::post, path, 11);
+        if (auto sdto = utils::serialize(dto); sdto)
+            req.body() = sdto.value();
+        else
+            co_return std::unexpected(sdto.error());
+        initRequestFields(req);
+
+        auto res = co_await http_.request(host_, port_, std::move(req));
+        if (!res)
+            co_return std::unexpected(res.error());
+        auto resp = std::move(res.value());
+        if (resp.header.result_int() / 100 != 2)
+        {
+            std::cout << "Images request error " << resp.header.result_int() << ": " << resp.stringBody() << '\n';
+            co_return std::unexpected(Error::FromServer);
+        }
+
+        if (resp.isStreaming())
+            co_return std::unexpected(Error::UnsoportedStream);
+        co_return utils::deserialize<dto::ImageResponse>(resp.stringBody());
     }
 
 private:
