@@ -29,11 +29,11 @@ public:
     CreateImageToolResult(dto::ImageResponse dto, store::ImageStore &imgStore)
         : ToolResult(calledFunctionName), dto_(std::move(dto)), store_(&imgStore)
     {
-        meta_.success = dto.data.has_value();
+        meta_.success = dto_.data.has_value();
         if (!meta_.success)
             return;
 
-        for (auto &&img : dto.data.value())
+        for (auto &&img : dto_.data.value())
         {
             if (!img.b64_json)
                 continue;
@@ -42,7 +42,7 @@ public:
                 continue;
             meta_.imageIds.push_back(imgStore.saveImage(std::move(binImagePr.value())));
         }
-        meta_.size = dto.size;
+        meta_.size = dto_.size;
     }
 
     std::string toString() const override
@@ -58,7 +58,7 @@ public:
         return true;
     }
 
-    dto::Content getAdditionalMessage() const override
+    std::vector<dto::ContentPart> getAdditionalMessage() const override
     {
         std::vector<dto::ContentPart> part;
         for (const auto &id : meta_.imageIds)
@@ -69,7 +69,7 @@ public:
                 continue;
 
             dto::TextPart text;
-            text.text = "Системное сообщение. Результат генерации картинки - изображение с id = " + id;
+            text.text = "Result of create_image: image with id = " + id;
             dto::ImagePart imgPart;
             imgPart.image_url = dto::ImageUrl{.url = openai::HistoryUtils::getBase64JpegPrefix() + base64Pr.value()};
             part.push_back(std::move(text));
