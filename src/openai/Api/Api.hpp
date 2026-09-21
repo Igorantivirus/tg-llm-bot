@@ -1,6 +1,8 @@
 #pragma once
 
+#include <ios>
 #include <iostream>
+#include <fstream>
 #include <net/HttpClient.hpp>
 #include <utils/Parser.hpp>
 #include <utils/Types.hpp>
@@ -65,6 +67,16 @@ public:
 
     utils::AsyncResult<ApiResponseGenerator> chatCompletions(dto::ChatCompletionsRequest dto)
     {
+        {
+            std::ofstream out("log.log", std::ios_base::app);
+            out << "Request:\n";
+            auto j = utils::serialize(dto);
+            if (j)
+                out << j.value() << '\n';
+            else
+                out << j.error() << '\n';
+        }
+
         net::BeastRequest req(http::verb::post, "/v1/chat/completions", 11);
         if (auto sdto = utils::serialize(dto); sdto)
             req.body() = sdto.value();

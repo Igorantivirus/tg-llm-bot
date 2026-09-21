@@ -23,7 +23,10 @@ public:
 
     std::string toString() const override
     {
-        auto resp = utils::serialize(dto_);
+        auto newDto = dto_;
+        for (auto &i : newDto.data.value())
+            i.b64_json = {};
+        auto resp = utils::serialize(newDto);
         if (!resp)
             return resp.error().message();
         return resp.value();

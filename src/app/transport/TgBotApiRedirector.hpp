@@ -29,7 +29,8 @@ public:
     [[nodiscard]] auto call(F f) -> utils::AsyncResult<std::invoke_result_t<F &, const TgBot::Api &>>
     {
         using R = std::invoke_result_t<F &, const TgBot::Api &>;
-        co_return co_await asio::co_spawn(pool_, [this, f = std::move(f)]() mutable -> utils::AsyncResult<R>
+        // co_return co_await asio::co_spawn(pool_, [this, f = std::move(f)]() mutable -> utils::AsyncResult<R>
+        co_return co_await asio::co_spawn(co_await asio::this_coro::executor, [this, f = std::move(f)]() mutable -> utils::AsyncResult<R>
         {
             try
             {

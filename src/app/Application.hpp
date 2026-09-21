@@ -33,7 +33,8 @@ class Application
 public:
     Application(config::AppConfig config)
         : io_(),
-          pool_(config.threadCount),
+          pool_(0),
+          //   pool_(config.threadCount),
 
           bot_(config.token),
           redirector_(pool_, bot_.getApi()),
@@ -60,7 +61,7 @@ public:
         permReadWriter_.read();
         asio::co_spawn(io_.get_executor(), proc_.initModels(), [](std::exception_ptr ex, utils::SyncResult<const std::unordered_set<std::string> *> res)
         {
-            if(!res)
+            if (!res)
                 std::cout << "Error init models: " << res.error().message() << '\n';
         });
 
@@ -69,7 +70,7 @@ public:
 
     int run()
     {
-        ioThread_.emplace(utils::buildMethod(&Application::ioMain, this));
+        // ioThread_.emplace(utils::buildMethod(&Application::ioMain, this));
         return botMain();
     }
 
@@ -103,23 +104,69 @@ private:
 private:
     int botMain()
     {
-        try
+        customizer_.initHandlers(cmnds_);
+
+        int64_t lastUpdateId = 0;
+
+        while (true)
         {
-            customizer_.initHandlers(cmnds_);
-            customizer_.run();
-            return EXIT_SUCCESS;
+            // Один короткий опрос. timeout = 0 — вернуть управление сразу,
+            // если обновлений нет.
+            std::vector<TgBot::Update::Ptr> updates;
+            try
+            {
+                updates = bot_.getApi().getUpdates(
+                    lastUpdateId + 1, // offset
+                    100,              // limit
+                    0                 // timeout (0 = без ожидания)
+                );
+            }
+            catch (const std::exception &e)
+            {
+                std::cerr << "getUpdates error: " << e.what() << '\n';
+            }
+
+            // Передаём каждое обновление в тот же обработчик,
+            // который использует TgLongPoll.
+            for (const auto &update : updates)
+            {
+                lastUpdateId = update->updateId;
+                bot_.getEventHandler().handleUpdate(update);
+            }
+
+            // Теперь можно безопасно крутить io_context:
+            // все колбэки уже поставлены в очередь.
+            io_.restart(); // обязательно: после run() контекст остановлен
+            io_.run();
         }
-        catch (const std::exception &er)
-        {
-            std::cout << "Error: " << er.what() << '\n';
-            return EXIT_FAILURE;
-        }
-        catch (...)
-        {
-            std::cout << "Enknown error\n";
-            return EXIT_FAILURE;
-        }
+
+        return EXIT_SUCCESS;
     }
+    // int botMain()
+    // {
+    //     try
+    //     {
+    //         customizer_.initHandlers(cmnds_);
+    //         while(true)
+    //         {
+    //             std::cout << "startNext\n";
+    //             customizer_.startNext();
+    //             std::cout << "run\n";
+    //             io_.run();
+    //         }
+    //         return EXIT_SUCCESS;
+    //     }
+    //     catch (const std::exception &er)
+    //     {
+    //         std::cout << "Error: " << er.what() << '\n';
+    //         return EXIT_FAILURE;
+    //     }
+    //     catch (...)
+    //     {
+    //         std::cout << "Enknown error\n";
+    //         return EXIT_FAILURE;
+    //     }
+    // }
 
     void ioMain(std::stop_token iot)
     {
