@@ -1,6 +1,7 @@
 #pragma once
 
 #include "openai/chatssettings/ChatsSettings.hpp"
+#include "openai/dto/ChatCompletions/Message.hpp"
 #include <openai/ChatsSettings/AdditionalsToMessage.hpp>
 #include <openai/ChatsSettings/HistoryUtils.hpp>
 #include <openai/messagegenerators/AssistantMessagesGenerator.hpp>
@@ -50,6 +51,11 @@ public:
     {
         dto::Message startmsg = HistoryUtils::constructStartMessage(std::move(msg), std::move(additionals));
         co_return AssistantMessagesGenerator(api_, chatId, std::move(startmsg), setts_);
+    }
+
+    utils::AsyncResult<AssistantMessagesGenerator> chatCompletions(const ChatIdType chatId, dto::Message msg)
+    {
+        co_return AssistantMessagesGenerator(api_, chatId, std::move(msg), setts_);
     }
 
     Api &getApi()
