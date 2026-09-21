@@ -100,6 +100,8 @@ private:
 
         for (auto &result : results)
         {
+            if(!result)
+                continue;
             if (!result->needToSendAdditionalMessage())
                 continue;
             auto parts = result->getAdditionalMessage();
@@ -107,7 +109,7 @@ private:
         }
         if (content.size() == 1)
             return;
-        
+
         dto::Message postfixMsg;
         postfixMsg.role = dto::Role::user;
         postfixMsg.content = std::move(content);
