@@ -5,6 +5,7 @@
 #include <app/handlers/CommandsProcessor.hpp>
 #include <app/handlers/MessagesProcessor.hpp>
 #include <app/handlers/QueryProcessor.hpp>
+#include <tgbot/Types.h>
 
 namespace bot
 {
@@ -35,6 +36,12 @@ public:
     void initHandlers(config::AllCommands cmnds)
     {
         registerCommands(bot_.getApi(), cmnds);
+
+        // bot_.getEvents().onAnyMessage([](TgBot::Message::Ptr)
+        // {
+        //     std::cout << "SKIP\n";
+        // });
+        // return;
         // Управляющие
         reg_.registrateCommand(cmnds.clear.command, &handlers::CommandsProcessor::clear, &PermissionChecker::checkBaseCommand, {0, 0});
         reg_.registrateCommand(cmnds.stop.command, &handlers::CommandsProcessor::stop, &PermissionChecker::checkBaseCommand, {0, 0});

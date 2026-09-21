@@ -13,6 +13,16 @@
                 "build"
             ],
             "problemMatcher": []
+        },
+        {
+            "label": "Bot: Skip",
+            "detail": "удалить очередь сообщений",
+            "type": "shell",
+            "command": "cwd/Tests.exe",
+            "args": [
+                "cwd/config.json"
+            ],
+            "problemMatcher": []
         }
     ]
 }
