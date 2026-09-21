@@ -26,6 +26,18 @@ public:
         return images_[id];
     }
 
+    /// @brief Ищет картинку, не создавая пустую запись. nullptr — id неизвестен.
+    const std::string* findImageById(const std::string& id) const
+    {
+        auto found = images_.find(id);
+        return found == images_.end() ? nullptr : &found->second;
+    }
+
+    bool contains(const std::string& id) const
+    {
+        return images_.contains(id);
+    }
+
 private:
     std::unordered_map<std::string, std::string> images_;
 
