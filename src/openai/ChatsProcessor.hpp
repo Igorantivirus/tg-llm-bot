@@ -53,9 +53,10 @@ public:
         co_return AssistantMessagesGenerator(api_, chatId, std::move(startmsg), setts_);
     }
 
-    utils::AsyncResult<AssistantMessagesGenerator> chatCompletions(const ChatIdType chatId, dto::Message msg)
+    utils::AsyncResult<AssistantMessagesGenerator> chatCompletions(const ChatIdType chatId, dto::Content msg)
     {
-        co_return AssistantMessagesGenerator(api_, chatId, std::move(msg), setts_);
+        dto::Message startmsg = HistoryUtils::constructMessage(std::move(msg));
+        co_return AssistantMessagesGenerator(api_, chatId, std::move(startmsg), setts_);
     }
 
     Api &getApi()

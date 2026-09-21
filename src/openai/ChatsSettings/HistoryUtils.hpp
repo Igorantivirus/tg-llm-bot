@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openai/dto/ChatCompletions/Message.hpp"
 #include <openai/chatssettings/AdditionalsToMessage.hpp>
 #include <openai/chatssettings/ChatHistory.hpp>
 #include <openai/chatssettings/ChatsSettings.hpp>
@@ -65,6 +66,14 @@ public:
         dto::ImageUrl url;
         url.url = getBase64JpegPrefix() + base64;
         additionals.imagesB64.push_back(std::move(url));
+    }
+
+    static dto::Message constructMessage(dto::Content content)
+    {
+        dto::Message res;
+        res.role = dto::Role::user;
+        res.content = std::move(content);
+        return res;
     }
 
     static dto::Message constructStartMessage(std::string msg, AdditionalsToMessage additionals)
