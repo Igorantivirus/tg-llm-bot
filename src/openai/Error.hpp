@@ -17,6 +17,7 @@ enum class Error : std::uint8_t
     LegacyFinishReason,
     InvalidRequestedType,
     UnsoportedStream,
+    UnknownImageId,
     Unknown
 };
 constexpr const std::array<const char *, static_cast<std::size_t>(Error::Unknown) + 1> errorNames = {
@@ -31,6 +32,7 @@ constexpr const std::array<const char *, static_cast<std::size_t>(Error::Unknown
     "Legacy finish reason was polled",
     "Invalid requested type in dto::MessageResponseValue",
     "Streaming unsoported yet",
+    "Unknown image id requested for edition",
     "Unknown"};
 } // namespace openai
 
