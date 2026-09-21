@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openai/dto/ChatCompletions/Message.hpp"
 #include <memory>
 #include <string>
 
@@ -24,7 +25,7 @@ public:
     virtual std::string toString() const = 0;
 
     template <typename T>
-    T *to() 
+    T *to()
     {
         return dynamic_cast<T *>(this);
     }
@@ -32,6 +33,16 @@ public:
     const T *to() const
     {
         return dynamic_cast<T *>(this);
+    }
+
+    virtual bool needToSendAdditionalMessage() const
+    {
+        return false;
+    }
+
+    virtual dto::Message getAdditionalMessage() const
+    {
+        return {};
     }
 
 private:
