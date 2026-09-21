@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <variant>
@@ -195,6 +196,71 @@ struct Schema
         Ref,
         Any>
         value;
+
+    /// Schema — прозрачная обёртка над вариантом: в JSON уходит сам узел схемы
+    /// ({"type":"string",...}), а не {"value":{...}}. Без этого модель получает
+    /// невалидную JSON Schema и начинает угадывать формат аргументов.
+    static constexpr bool jsonserTransparent = true;
+
+    template <jsonser::BasicJson J>
+    friend void to_json(J &j, const Schema &schema)
+    {
+        jsonser::Serialize::toJson(j, schema.value);
+    }
+    template <jsonser::BasicJson J>
+    friend void from_json(const J &j, Schema &schema)
+    {
+        deserializeNode(j, schema);
+    }
+
+private:
+    /// Вариант не самоописывающийся: выбираем альтернативу по структуре узла.
+    template <jsonser::BasicJson J>
+    static void deserializeNode(const J &j, Schema &schema)
+    {
+        auto as = [&j, &schema]<typename Node>()
+        {
+            Node node{};
+            jsonser::Deserialize::fromJson(j, node);
+            schema.value = std::move(node);
+        };
+
+        if (j.contains("$ref"))
+            return as.template operator()<Ref>();
+        if (j.contains("anyOf"))
+            return as.template operator()<AnyOf>();
+        if (j.contains("oneOf"))
+            return as.template operator()<OneOf>();
+        if (j.contains("allOf"))
+            return as.template operator()<AllOf>();
+        if (j.contains("not"))
+            return as.template operator()<Not>();
+
+        if (!j.contains("type"))
+            return as.template operator()<Any>();
+
+        const auto &jType = j.at("type");
+        if (jType.is_array())
+            return as.template operator()<MultiType>();
+
+        const auto type = jType.template get<std::string>();
+        if (type == "null")
+            return as.template operator()<Null>();
+        if (type == "boolean")
+            return as.template operator()<Boolean>();
+        if (type == "string")
+            return as.template operator()<String>();
+        if (type == "integer")
+            return as.template operator()<Integer>();
+        if (type == "number")
+            return as.template operator()<Number>();
+        if (type == "array")
+            return as.template operator()<Array>();
+        if (type == "object")
+            return as.template operator()<Object>();
+
+        throw std::logic_error("Unknown JSON Schema type: " + type);
+    }
 };
 
 } // namespace dto::schema

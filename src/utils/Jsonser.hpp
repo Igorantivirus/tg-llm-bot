@@ -131,8 +131,17 @@ concept AgregatStructure = requires {
     requires !std::is_union_v<T>;
 };
 
+/// @brief Тип, помеченный как «прозрачный»: сериализуется не как структура с полями,
+/// а через собственные to_json/from_json. Нужен для обёрток вроде dto::schema::Schema,
+/// где лишний уровень вложенности сломал бы формат (например, JSON Schema).
 template <typename T>
-concept ReflectStruct = AgregatStructure<T> && !std::ranges::range<T> && !Optional<T> && !Variant<T> && !Enum<T>;
+concept Transparent = requires {
+    { T::jsonserTransparent } -> std::convertible_to<bool>;
+    requires T::jsonserTransparent;
+};
+
+template <typename T>
+concept ReflectStruct = AgregatStructure<T> && !Transparent<T> && !std::ranges::range<T> && !Optional<T> && !Variant<T> && !Enum<T>;
 
 template <AgregatStructure S>
 consteval std::array<FieldInfo, boost::pfr::tuple_size_v<S>> getNames()
@@ -244,6 +253,8 @@ private:
             enumFromJson<J, T>(j, v, def);
         else if constexpr (Optional<T>)
             optionalFromJson<J, T>(j, v, def, setts);
+        else if constexpr (Transparent<T>)
+            deserializableFromJson<J, T>(j, v);
         else if constexpr (AgregatStructure<T>)
             structFromJson<J, T>(j, v, def, setts);
         else if constexpr (Deserializeable<J, T>)
@@ -356,6 +367,8 @@ private:
             variantToJson<J, T>(j, v, setts);
         else if constexpr (Optional<T>)
             optionalToJson<J, T>(j, v, setts);
+        else if constexpr (Transparent<T>)
+            serializableToJson<J, T>(j, v);
         else if constexpr (AgregatStructure<T>)
             structToJson<J, T>(j, v, setts);
         else if constexpr (Serializeable<J, T>)
