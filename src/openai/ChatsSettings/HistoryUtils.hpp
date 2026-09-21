@@ -55,10 +55,15 @@ public:
         return req;
     }
 
+    static std::string getBase64JpegPrefix()
+    {
+        return "data:image/jpeg;base64,";
+    }
+
     static void addPhotoToAdditionals(AdditionalsToMessage &additionals, std::string base64)
     {
         dto::ImageUrl url;
-        url.url = "data:image/jpeg;base64," + base64;
+        url.url = getBase64JpegPrefix() + base64;
         additionals.imagesB64.push_back(std::move(url));
     }
 
