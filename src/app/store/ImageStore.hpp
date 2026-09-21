@@ -16,7 +16,7 @@ public:
         do
         {
             id = nextId();
-        } while(!images_.contains(id) && !id.empty());
+        } while(images_.contains(id) || id.empty());
         images_[id] = std::move(image);
         return id;
     }
@@ -34,7 +34,7 @@ private:
     static std::string nextId()
     {
         static unsigned id = 0;
-        return (std::ostringstream() << std::hex << (++id)).str();
+        return "img_" + (std::ostringstream() << std::hex << (++id)).str();
     }
 
 
