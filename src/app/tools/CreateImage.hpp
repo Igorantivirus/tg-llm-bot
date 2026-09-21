@@ -6,6 +6,7 @@
 #include <memory>
 #include <openai/Tools/Tool.hpp>
 #include <openai/api/Api.hpp>
+#include <openai/dto/Image/EditImageRequest.hpp>
 #include <openai/dto/Image/ImageResponse.hpp>
 #include <utils/Base64.hpp>
 #include <utils/NonNullCopybleUniquePtr.hpp>
@@ -92,6 +93,10 @@ private:
 class CreateImage : public openai::Tool
 {
 public:
+    // TODO: вынести в конфиг вместе с выбором модели
+    static inline const std::string generationModel = "qwen-edit-nsfw";
+    static inline const std::string editionModel = "qwen-edit-nsfw";
+
     enum class ActionType
     {
         generate,
@@ -105,10 +110,13 @@ public:
     };
     struct Params
     {
-        std::string     prompt;
-        ActionType      action = ActionType::generate;
-        AspectRatioType aspect_ratio = AspectRatioType::square;
-        unsigned short  image_count = 1;
+        std::string              prompt;
+        ActionType               action = ActionType::generate;
+        AspectRatioType          aspect_ratio = AspectRatioType::square;
+        unsigned short           image_count = 1;
+        /// Непустой список означает редактирование: эти картинки берутся из store
+        /// и уходят в модель редактирования вместе с промтом.
+        std::vector<std::string> image_ids;
     };
 
 public:
@@ -124,14 +132,16 @@ public:
             co_return std::unexpected(dto.error());
         Params params = std::move(dto.value());
 
-        dto::GenerateImageRequest req;
-        req.prompt = std::move(params.prompt);
-        req.n = params.image_count;
-        req.model = "qwen-edit-nsfw"; // TODO: make change model
-
-        auto res = co_await api_.imagesGeneration(std::move(req));
+        // Редактирование запрашивается наличием картинок на входе, а не полем action:
+        // модель заполняет action не всегда, а image_ids без редактирования бессмысленны.
+        auto res = params.image_ids.empty()
+                       ? co_await generate(params)
+                       : co_await edit(params);
         if (!res)
+        {
+            std::cout << "Create message error: " << res.error() << '\n';
             co_return std::unexpected(res.error());
+        }
 
         co_return std::make_shared<CreateImageToolResult>(std::move(res.value()), imgStore_);
     }
@@ -156,7 +166,7 @@ public:
         dto::schema::String action_str;
         action_str.type = "string";
         action_str.enum_field = std::vector<std::string>{"generate", "edit"};
-        action_str.description = "Use 'edit' to modify an existing image, 'generate' for a new one.";
+        action_str.description = "Use 'edit' to modify existing images (also fill image_ids), 'generate' for a new one.";
         action_schema.value = std::move(action_str);
         properties["action"] = utils::NonNullCopybleUniquePtr<dto::schema::Schema>(std::move(action_schema));
 
@@ -187,6 +197,19 @@ public:
         image_count_schema.value = std::move(image_count_int);
         properties["image_count"] = utils::NonNullCopybleUniquePtr<dto::schema::Schema>(std::move(image_count_schema));
 
+        // Image ids property (редактирование)
+        dto::schema::Schema image_ids_schema;
+        dto::schema::Array  image_ids_arr;
+        image_ids_arr.type = "array";
+        image_ids_arr.description = "Ids of the images to edit, taken from previous create_image results. Leave empty to generate a new image; fill it only when modifying images that already exist in this conversation.";
+        dto::schema::Schema image_id_schema;
+        dto::schema::String image_id_str;
+        image_id_str.type = "string";
+        image_id_schema.value = std::move(image_id_str);
+        image_ids_arr.items = utils::NonNullCopybleUniquePtr<dto::schema::Schema>(std::move(image_id_schema));
+        image_ids_schema.value = std::move(image_ids_arr);
+        properties["image_ids"] = utils::NonNullCopybleUniquePtr<dto::schema::Schema>(std::move(image_ids_schema));
+
         obj.properties = std::move(properties);
 
         // Required fields
@@ -198,5 +221,41 @@ public:
 private:
     openai::Api       &api_;
     store::ImageStore &imgStore_;
+
+private:
+    utils::AsyncResult<dto::ImageResponse> generate(Params &params)
+    {
+        dto::GenerateImageRequest req;
+        req.prompt = std::move(params.prompt);
+        req.n = params.image_count;
+        req.model = generationModel; // TODO: make change model
+
+        co_return co_await api_.imagesGeneration(std::move(req));
+    }
+
+    utils::AsyncResult<dto::ImageResponse> edit(Params &params)
+    {
+        dto::EditImageRequest req;
+        req.prompt = std::move(params.prompt);
+        req.n = params.image_count;
+        req.model = editionModel; // TODO: make change model
+
+        for (const auto &id : params.image_ids)
+        {
+            const std::string *imageBin = imgStore_.findImageById(id);
+            if (!imageBin)
+                co_return std::unexpected(openai::Error::UnknownImageId);
+
+            auto base64Pr = utils::Base64::encode(*imageBin);
+            if (!base64Pr)
+                co_return std::unexpected(base64Pr.error());
+
+            dto::ImageReference ref;
+            ref.image_url = openai::HistoryUtils::getBase64JpegPrefix() + base64Pr.value();
+            req.images.push_back(std::move(ref));
+        }
+
+        co_return co_await api_.imagesEdit(std::move(req));
+    }
 };
 } // namespace tools
