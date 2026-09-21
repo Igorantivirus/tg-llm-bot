@@ -40,7 +40,7 @@ public:
         return false;
     }
 
-    virtual dto::Content getAdditionalMessage() const
+    virtual std::vector<dto::ContentPart> getAdditionalMessage() const
     {
         return {};
     }
