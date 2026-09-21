@@ -1,35 +1,81 @@
 #pragma once
 
-#include "openai/Tools/ToolResult.hpp"
-#include "openai/api/Api.hpp"
-#include "openai/dto/ChatCompletions/JsonSchema.hpp"
-#include "utils/NonNullCopybleUniquePtr.hpp"
+#include "openai/chatssettings/HistoryUtils.hpp"
+#include "openai/dto/ChatCompletions/Message.hpp"
+#include <app/store/ImageStore.hpp>
 #include <memory>
 #include <openai/Tools/Tool.hpp>
+#include <openai/api/Api.hpp>
+#include <openai/dto/Image/ImageResponse.hpp>
+#include <utils/Base64.hpp>
+#include <utils/NonNullCopybleUniquePtr.hpp>
 #include <utils/Parser.hpp>
 
-namespace openai
+namespace tools
 {
-class CreateImageToolResult : public ToolResult
+class CreateImageToolResult : public openai::ToolResult
 {
 public:
     static inline const std::string calledFunctionName = "create_image";
 
-public:
-    CreateImageToolResult(dto::ImageResponse dto)
-        : ToolResult(calledFunctionName), dto_(std::move(dto))
+    struct ImageMeta
     {
+        bool                       success = true;
+        std::vector<std::string>   imageIds;
+        std::optional<std::string> size;
+    };
+
+public:
+    CreateImageToolResult(dto::ImageResponse dto, store::ImageStore &imgStore)
+        : ToolResult(calledFunctionName), dto_(std::move(dto)), store_(&imgStore)
+    {
+        meta_.success = dto.data.has_value();
+        if (!meta_.success)
+            return;
+
+        for (auto &&img : dto.data.value())
+        {
+            if (!img.b64_json)
+                continue;
+            auto binImagePr = utils::Base64::decode(img.b64_json.value());
+            if (!binImagePr)
+                continue;
+            meta_.imageIds.push_back(imgStore.saveImage(std::move(binImagePr.value())));
+        }
+        meta_.size = dto.size;
     }
 
     std::string toString() const override
     {
-        auto newDto = dto_;
-        for (auto &i : newDto.data.value())
-            i.b64_json = {};
-        auto resp = utils::serialize(newDto);
+        auto resp = utils::serialize(meta_);
         if (!resp)
             return resp.error().message();
         return resp.value();
+    }
+
+    bool needToSendAdditionalMessage() const override
+    {
+        return true;
+    }
+
+    dto::Content getAdditionalMessage() const override
+    {
+        std::vector<dto::ContentPart> part;
+        for (const auto &id : meta_.imageIds)
+        {
+            const std::string &imageBin = store_->getImageById(id);
+            auto               base64Pr = utils::Base64::encode(imageBin);
+            if (!base64Pr)
+                continue;
+
+            dto::TextPart text;
+            text.text = "Системное сообщение. Результат генерации картинки - изображение с id = " + id;
+            dto::ImagePart imgPart;
+            imgPart.image_url = dto::ImageUrl{.url = openai::HistoryUtils::getBase64JpegPrefix() + base64Pr.value()};
+            part.push_back(std::move(text));
+            part.push_back(std::move(imgPart));
+        }
+        return part;
     }
 
     const dto::ImageResponse &getDto() const
@@ -38,10 +84,12 @@ public:
     }
 
 private:
+    ImageMeta          meta_;
     dto::ImageResponse dto_;
+    store::ImageStore *store_;
 };
 
-class CreateImage : public Tool
+class CreateImage : public openai::Tool
 {
 public:
     enum class ActionType
@@ -64,12 +112,12 @@ public:
     };
 
 public:
-    CreateImage(Api &api)
-        : api_(api)
+    CreateImage(openai::Api &api, store::ImageStore &imgStore)
+        : api_(api), imgStore_(imgStore)
     {
     }
 
-    utils::AsyncResult<ToolResult::Ptr> run(std::string args) override
+    utils::AsyncResult<openai::ToolResult::Ptr> run(std::string args) override
     {
         auto dto = utils::deserialize<Params>(args);
         if (!dto)
@@ -85,7 +133,7 @@ public:
         if (!res)
             co_return std::unexpected(res.error());
 
-        co_return std::make_shared<CreateImageToolResult>(std::move(res.value()));
+        co_return std::make_shared<CreateImageToolResult>(std::move(res.value()), imgStore_);
     }
     std::string name() const override
     {
@@ -148,6 +196,7 @@ public:
     }
 
 private:
-    Api &api_;
+    openai::Api       &api_;
+    store::ImageStore &imgStore_;
 };
-} // namespace openai
+} // namespace tools
