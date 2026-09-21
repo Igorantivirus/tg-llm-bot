@@ -13,7 +13,9 @@ class AssistantToolCaller
 public:
     struct CallsResult
     {
-        DialogFragment               fragment;
+        DialogFragment fragment;
+        /// Только успешные вызовы; nullptr здесь не бывает.
+        /// Размер может быть меньше fragment: упавший инструмент даёт сообщение с текстом ошибки, но не результат.
         std::vector<ToolResult::Ptr> results;
     };
 
@@ -36,7 +38,10 @@ public:
                 continue;
             auto [dto, ptr] = co_await callToolToMessage(found->second, tcl.function->arguments.value(), tcl.id.value());
             result.fragment.push_back(std::move(dto));
-            result.results.push_back(std::move(ptr));
+            // Неудачный вызов не даёт результата: текст ошибки уже ушёл модели в dto.content.
+            // В results попадают только валидные указатели — потребители на это рассчитывают.
+            if (ptr)
+                result.results.push_back(std::move(ptr));
         }
         co_return result;
     }
