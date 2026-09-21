@@ -3,6 +3,7 @@
 #include "handlers/QueryProcessor.hpp"
 #include "openai/Tools/DefaultTools/CreateImage.hpp"
 #include "openai/Tools/Tool.hpp"
+#include "store/ImageStore.hpp"
 #include "utils/Types.hpp"
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/thread_pool.hpp>
@@ -49,7 +50,7 @@ public:
           editor(data_),
 
           cmdProc_(sender_, operator_, config.locale, editor, permReadWriter_),
-          msgProc_(sender_, operator_),
+          msgProc_(sender_, operator_, imgStore_),
           queProc_(sender_, operator_, config.locale),
 
           checker_(data_),
@@ -90,6 +91,8 @@ private:
     permissions::Permissions data_;
     permissions::ReadWriter  permReadWriter_;
     permissions::Editor      editor;
+
+    store::ImageStore imgStore_;
 
     handlers::CommandsProcessor cmdProc_;
     handlers::MessagesProcessor msgProc_;
