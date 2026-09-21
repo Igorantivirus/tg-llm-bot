@@ -36,11 +36,16 @@ public:
         MarkdownState state;
 
         std::ignore = sender_.sendAction(chatId, transport::ChatAction::typing);
-
         while (auto next = co_await gen.next())
         {
             if (!next->toolCallResult.empty())
                 co_await processTools(next->toolCallResult, chatId);
+            if(next->toolCalling)
+            {
+                accum += "\n!Вызов инструмента!`\n";
+                co_await editOrSend(chatId, msgId, accum, false);
+                sent = accum.size();
+            }
             accum += next->content;
             while (accum.size() > maxMessageSize_)
             {

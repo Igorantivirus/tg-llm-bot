@@ -45,7 +45,12 @@ public:
         if (msg->refusal)
             refusal_ += std::move(msg->refusal.value());
         if (msg->tool_calls)
-            (result.toolCalling = true), std::for_each_n(msg->tool_calls->begin(), msg->tool_calls->size(), utils::buildMethod(&AssistantMessagesAccumulator::accumulateTool, this));
+            std::for_each_n(msg->tool_calls->begin(), msg->tool_calls->size(), [this, calling = &result.toolCalling](dto::ToolCall &tool)
+            {
+                if (tool.id)
+                    *calling = true;
+                this->accumulateTool(tool);
+            });
 
         if (choice.finish_reason)
             finish(choice.finish_reason.value());

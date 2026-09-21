@@ -1,11 +1,13 @@
 #pragma once
 
+#include <boost/asio/awaitable.hpp>
 #include <utils/MethodBinder.hpp>
 #include <utils/StreamGenerator.hpp>
 
 #include "Error.hpp"
 #include "HttpSettings.hpp"
 #include "TcpConnection.hpp"
+#include "utils/Types.hpp"
 
 namespace net
 {
@@ -31,6 +33,14 @@ public:
 
     HttpStreamReader &operator=(const HttpStreamReader &other) = delete;
     HttpStreamReader &operator=(HttpStreamReader &&other) = delete;
+
+    asio::awaitable<std::string> readAll()
+    {
+        std::string body;
+        while (auto nxt = co_await next())
+            body += nxt.value();
+        co_return body; // Ошибку посомтреть можно отдельно
+    }
 
 private:
     TcpConnection conn_;

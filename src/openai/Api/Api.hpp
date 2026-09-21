@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <net/HttpClient.hpp>
 #include <utils/Parser.hpp>
 #include <utils/Types.hpp>
@@ -38,10 +39,7 @@ public:
         if (!res)
             co_return std::unexpected(res.error());
         auto resp = std::move(res.value());
-        if (resp.isStreaming())
-            co_return std::unexpected(Error::UnsoportedStream);
-
-        co_return utils::deserialize<dto::ModelsResponse>(resp.stringBody());
+        co_return utils::deserialize<dto::ModelsResponse>(resp.isStreaming() ? co_await resp.streamBody().readAll() : resp.stringBody());
     }
 
     utils::AsyncResult<dto::ImageResponse> imagesGeneration(dto::GenerateImageRequest dto)
@@ -79,7 +77,11 @@ public:
             co_return std::unexpected(res.error());
         auto resp = std::move(res.value());
         if (resp.header.result_int() / 100 != 2)
+        {
+            std::cout << resp.stringBody() << '\n';
+            std::cout << "Error: " << resp.header.result_int() << " code\n";
             co_return std::unexpected(Error::FromServer);
+        }
 
         if (!resp.isStreaming()) // Тело сразу есть
         {
