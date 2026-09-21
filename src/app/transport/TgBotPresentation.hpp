@@ -9,11 +9,11 @@
 
 #include <app/config/Locale.hpp>
 #include <app/core/Presentation/Presenter.hpp>
+#include <app/tools/CreateImage.hpp>
 #include <app/transport/TgBotMessageSender.hpp>
 #include <app/transport/presentation/ChatAction.hpp>
 #include <app/transport/presentation/KeyBoardGenerate.hpp>
 #include <app/transport/presentation/MarkdownV2.hpp>
-#include <openai/Tools/DefaultTools/CreateImage.hpp>
 #include <utils/Format.hpp>
 
 namespace transport
@@ -40,7 +40,7 @@ public:
         {
             if (!next->toolCallResult.empty())
                 co_await processTools(next->toolCallResult, chatId);
-            if(next->toolCalling)
+            if (next->toolCalling)
             {
                 accum += "\n!Вызов инструмента!`\n";
                 co_await editOrSend(chatId, msgId, accum, false);
@@ -107,9 +107,9 @@ private:
     {
         for (auto &tool : tools)
         {
-            if (tool->calledFunction() == openai::CreateImageToolResult::calledFunctionName)
+            if (tool->calledFunction() == tools::CreateImageToolResult::calledFunctionName)
             {
-                openai::CreateImageToolResult *ptr = tool->to<openai::CreateImageToolResult>();
+                tools::CreateImageToolResult *ptr = tool->to<tools::CreateImageToolResult>();
                 if (!ptr)
                     continue;
                 const auto &dto = ptr->getDto();

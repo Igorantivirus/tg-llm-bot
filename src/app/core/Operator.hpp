@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openai/dto/ChatCompletions/Message.hpp"
 #include "openai/dto/ChatCompletions/Request.hpp"
 #include <boost/asio/detached.hpp>
 #include <queue>
@@ -72,6 +73,14 @@ public:
     asio::awaitable<void> processMessage(OperationInfo::Ptr info, std::string msg, openai::AdditionalsToMessage adds = {})
     {
         processTask(co_await asio::this_coro::executor, info, 0, tasker_.processMessage(info, std::move(msg), std::move(adds)));
+    }
+    asio::awaitable<void> addMessage(OperationInfo::Ptr info, dto::Content cntnt)
+    {
+        processTask(co_await asio::this_coro::executor, info, 0, tasker_.addMessage(info, std::move(cntnt)));
+    }
+    asio::awaitable<void> processMessage(OperationInfo::Ptr info, dto::Content cntnt)
+    {
+        processTask(co_await asio::this_coro::executor, info, 0, tasker_.processMessage(info, std::move(cntnt)));
     }
 
 private:

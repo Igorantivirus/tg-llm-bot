@@ -40,7 +40,7 @@ public:
         return false;
     }
 
-    virtual dto::Message getAdditionalMessage() const
+    virtual dto::Content getAdditionalMessage() const
     {
         return {};
     }

@@ -1,12 +1,12 @@
 #pragma once
 
-#include "handlers/QueryProcessor.hpp"
-#include "openai/Tools/DefaultTools/CreateImage.hpp"
-#include "openai/Tools/Tool.hpp"
 #include "store/ImageStore.hpp"
 #include "utils/Types.hpp"
+#include <app/handlers/QueryProcessor.hpp>
+#include <app/tools/CreateImage.hpp>
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/thread_pool.hpp>
+#include <openai/Tools/Tool.hpp>
 
 #include <app/config/AppConfig.hpp>
 
@@ -66,7 +66,7 @@ public:
                 std::cout << "Error init models: " << res.error().message() << '\n';
         });
 
-        proc_.addTool(std::make_unique<openai::CreateImage>(proc_.getApi()));
+        proc_.addTool(std::make_unique<tools::CreateImage>(proc_.getApi(), imgStore_));
     }
 
     int run()

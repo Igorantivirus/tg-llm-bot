@@ -4,7 +4,7 @@
 #include "openai/chatssettings/AdditionalsToMessage.hpp"
 #include "openai/chatssettings/HistoryUtils.hpp"
 #include "openai/chatssettings/Types.hpp"
-#include "utils/Format.hpp"
+#include "openai/dto/ChatCompletions/Message.hpp"
 #include <boost/asio/any_io_executor.hpp>
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/co_spawn.hpp>
@@ -96,10 +96,52 @@ class MessagesProcessor
         }
     };
 
-    struct ImagePart
+    struct ContentPart
     {
-        std::string iamegId;
+        std::string id;
         std::string base64;
+    };
+
+    struct MessageBuildInfo
+    {
+        openai::ChatIdType       chat;
+        std::string              message;
+        std::vector<ContentPart> images;
+
+        static dto::Content toMessage(MessageBuildInfo info)
+        {
+            if (info.images.empty())
+                return std::move(info.message);
+            std::vector<dto::ContentPart> res;
+            res.push_back(getTextPart(std::move(info.message)));
+
+            for (auto &&[id, b64] : info.images)
+            {
+                res.push_back(getTextPart("id следующего изображения = " + id));
+                res.push_back(getJpegPart(std::move(b64)));
+            }
+
+            return res;
+        }
+
+    private:
+        static dto::TextPart getTextPart(std::string msg)
+        {
+            dto::TextPart part;
+            part.text = std::move(msg);
+            return part;
+        }
+        static dto::ImagePart getJpegPart(std::string b64)
+        {
+            b64.insert(0, openai::HistoryUtils::getBase64JpegPrefix());
+
+            dto::ImageUrl url;
+            url.url = std::move(b64);
+
+            dto::ImagePart part;
+            part.image_url = std::move(url);
+            return part;
+        }
     };
 
 public:
@@ -116,11 +158,15 @@ public:
             co_return;
         }
 
-        if (!msg->text)
+        MessageBuildInfo msgInfo;
+        co_await appendSendDataFromMessage(msgInfo, msg);
+        if (!msgInfo.chat)
             co_return;
 
-        auto info = std::make_shared<core::OperationInfo>(msg->chat->id);
-        co_await operator_.addMessage(info, msg->text.value());
+        auto info = std::make_shared<core::OperationInfo>(msgInfo.chat);
+
+        dto::Content dto = MessageBuildInfo::toMessage(std::move(msgInfo));
+        co_await operator_.addMessage(info, std::move(dto));
     }
 
     asio::awaitable<void> processMessage(TgBot::Message::Ptr msg)
@@ -130,63 +176,45 @@ public:
             co_await collect(std::move(msg), &MessagesProcessor::processMessages);
             co_return;
         }
-        std::string            text;
-        std::vector<ImagePart> images;
-        openai::ChatIdType     chatId = 0;
-
-        co_await appendSendDataFromMessage(text, images, chatId, msg);
-        if (!chatId)
+        MessageBuildInfo msgInfo;
+        co_await appendSendDataFromMessage(msgInfo, msg);
+        if (!msgInfo.chat)
             co_return;
-        auto info = std::make_shared<core::OperationInfo>(msg->chat->id);
-        // Все картинки заполняем и отправляем отдельно
-        for (auto &&[id, b64] : images)
-        {
-            openai::AdditionalsToMessage prAdd;
-            openai::HistoryUtils::addPhotoToAdditionals(prAdd, std::move(b64));
-            co_await operator_.addMessage(info, utils::Format::format("Техническое сообщение: следующее изображение имеет image_id = {}", id), std::move(prAdd));
-        }
-        co_await operator_.processMessage(info, std::move(text));
+
+        auto info = std::make_shared<core::OperationInfo>(msgInfo.chat);
+
+        dto::Content dto = MessageBuildInfo::toMessage(std::move(msgInfo));
+        co_await operator_.processMessage(info, std::move(dto));
     }
 
     asio::awaitable<void> addMessages(std::vector<TgBot::Message::Ptr> msgs)
     {
-        std::string            text;
-        std::vector<ImagePart> images;
-        openai::ChatIdType     chatId = 0;
+        MessageBuildInfo msgInfo;
+
         for (const auto &msg : msgs)
-            co_await appendSendDataFromMessage(text, images, chatId, msg);
-        if (!chatId)
+            co_await appendSendDataFromMessage(msgInfo, msg);
+        if (!msgInfo.chat)
             co_return;
-        auto info = std::make_shared<core::OperationInfo>(chatId);
-        // Все картинки заполняем и отправляем отдельно
-        for (auto &&[id, b64] : images)
-        {
-            openai::AdditionalsToMessage prAdd;
-            openai::HistoryUtils::addPhotoToAdditionals(prAdd, std::move(b64));
-            co_await operator_.addMessage(info, utils::Format::format("Техническое сообщение: следующее изображение имеет image_id = {}", id), std::move(prAdd));
-        }
-        co_await operator_.addMessage(info, std::move(text));
+
+        auto info = std::make_shared<core::OperationInfo>(msgInfo.chat);
+
+        dto::Content dto = MessageBuildInfo::toMessage(std::move(msgInfo));
+        co_await operator_.addMessage(info, std::move(dto));
     }
 
     asio::awaitable<void> processMessages(std::vector<TgBot::Message::Ptr> msgs)
     {
-        std::string            text;
-        std::vector<ImagePart> images;
-        openai::ChatIdType     chatId = 0;
-        for (const auto &msg : msgs)
-            co_await appendSendDataFromMessage(text, images, chatId, msg);
-        if (!chatId)
-            co_return;
-        auto info = std::make_shared<core::OperationInfo>(chatId);
-        // Все картинки заполняем и отправляем отдельно
-        for (auto &&[id, b64] : images)
-        {
-            openai::AdditionalsToMessage prAdd;
-            openai::HistoryUtils::addPhotoToAdditionals(prAdd, std::move(b64));
-            co_await operator_.addMessage(info, utils::Format::format("Техническое сообщение: следующее изображение имеет image_id = {}", id), std::move(prAdd));
-        }
+        MessageBuildInfo msgInfo;
 
-        co_await operator_.processMessage(info, std::move(text));
+        for (const auto &msg : msgs)
+            co_await appendSendDataFromMessage(msgInfo, msg);
+        if (!msgInfo.chat)
+            co_return;
+
+        auto info = std::make_shared<core::OperationInfo>(msgInfo.chat);
+
+        dto::Content dto = MessageBuildInfo::toMessage(std::move(msgInfo));
+        co_await operator_.processMessage(info, std::move(dto));
     }
 
 private:
@@ -203,7 +231,7 @@ private:
         co_return;
     }
 
-    asio::awaitable<std::optional<ImagePart>> addPhoto(std::vector<TgBot::PhotoSize::Ptr> &photos)
+    asio::awaitable<std::optional<ContentPart>> addPhoto(std::vector<TgBot::PhotoSize::Ptr> &photos)
     {
         std::string      fileId = photos.at(0)->fileId;
         TgBot::File::Ptr file = co_await sender_.getFile(std::move(fileId));
@@ -216,27 +244,27 @@ private:
         if (!base64Pr)
             co_return std::nullopt;
 
-        ImagePart res;
+        ContentPart res;
         res.base64 = base64Pr.value();
-        res.iamegId = store_.saveImage(std::move(binFile));
+        res.id = store_.saveImage(std::move(binFile));
 
         co_return res;
     }
 
-    asio::awaitable<void> appendSendDataFromMessage(std::string &text, std::vector<ImagePart> &imagesParts, openai::ChatIdType &chatId, TgBot::Message::Ptr msg)
+    asio::awaitable<void> appendSendDataFromMessage(MessageBuildInfo &info, TgBot::Message::Ptr msg)
     {
         if (msg->text)
-            text = std::move(msg->text.value());
+            info.message = std::move(msg->text.value());
         if (msg->caption)
-            text = std::move(msg->caption.value());
+            info.message = std::move(msg->caption.value());
         if (msg->chat)
-            chatId = msg->chat->id;
+            info.chat = msg->chat->id;
 
         if (msg->photo && !msg->photo->empty())
         {
             auto imageId = co_await addPhoto(msg->photo.value());
             if (imageId)
-                imagesParts.push_back(std::move(imageId.value()));
+                info.images.push_back(std::move(imageId.value()));
         }
     }
 

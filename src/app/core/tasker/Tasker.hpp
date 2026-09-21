@@ -1,5 +1,6 @@
 #pragma once
 
+#include "openai/dto/ChatCompletions/Message.hpp"
 #include "openai/dto/ChatCompletions/Request.hpp"
 #include <boost/system/detail/error_code.hpp>
 #include <openai/ChatsProcessor.hpp>
@@ -90,6 +91,21 @@ public:
     asio::awaitable<void> processMessage(OperationInfo::Ptr info, std::string msg, openai::AdditionalsToMessage adds)
     {
         auto gen = co_await proc_.chatCompletions(info->getChatId(), std::move(msg), std::move(adds));
+        if (!gen)
+            co_return co_await presenter_.presentError(info, gen.error());
+        Registration      reg(stopsSignals_[info->getChatId()]);
+        StopableGenerator stopableGen(std::move(gen.value()), reg.stop());
+        co_await presenter_.presentMessage(info, stopableGen); // StopableGenerator no movable. поэтому гарантируется, что presentMessage завершится раньше, чем унечтожится Registration
+    }
+    asio::awaitable<void> addMessage(OperationInfo::Ptr info, dto::Content cntnt)
+    {
+        dto::Message dto = openai::HistoryUtils::constructMessage(std::move(cntnt));
+        proc_.settings().repo().addDialogFragment(info->getChatId(), {std::move(dto)});
+        co_return;
+    }
+    asio::awaitable<void> processMessage(OperationInfo::Ptr info, dto::Content cntnt)
+    {
+        auto gen = co_await proc_.chatCompletions(info->getChatId(), std::move(cntnt));
         if (!gen)
             co_return co_await presenter_.presentError(info, gen.error());
         Registration      reg(stopsSignals_[info->getChatId()]);
