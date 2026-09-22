@@ -19,8 +19,8 @@ struct AspectRatios
 
 struct ImagesConfig
 {
-    std::string  generationModel = "qwen-edit-nsfw";
-    std::string  editionModel = "qwen-edit-nsfw";
+    /// Модель для картинок по умолчанию; в каждом чате её можно сменить командой.
+    std::string  defaultModel = "qwen-edit-nsfw";
     AspectRatios aspectRatios;
 };
 
