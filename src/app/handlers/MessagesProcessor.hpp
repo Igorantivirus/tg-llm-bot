@@ -1,11 +1,5 @@
 #pragma once
 
-#include "app/store/ImageEntry.hpp"
-#include "app/transport/TgBotMessageSender.hpp"
-#include "openai/chatssettings/AdditionalsToMessage.hpp"
-#include "openai/chatssettings/HistoryUtils.hpp"
-#include "openai/chatssettings/Types.hpp"
-#include "openai/dto/ChatCompletions/Message.hpp"
 #include <boost/asio/any_io_executor.hpp>
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/co_spawn.hpp>
@@ -14,6 +8,7 @@
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/this_coro.hpp>
 #include <boost/asio/use_awaitable.hpp>
+#include <tgbot/Types.h>
 
 #include <chrono>
 #include <iostream>
@@ -24,15 +19,21 @@
 #include <vector>
 
 #include <app/core/Operator.hpp>
+#include <app/store/ImageEntry.hpp>
 #include <app/store/ImageStore.hpp>
-#include <tgbot/Types.h>
+#include <app/tika/UnpackerAll.hpp>
+#include <app/transport/TgBotMessageSender.hpp>
+#include <openai/dto/ChatCompletions/Message.hpp>
 #include <utils/Base64.hpp>
+
+#include "MessageBuildInfo.hpp"
 
 namespace handlers
 {
 
 class MessagesProcessor
 {
+private:
     using MessagesHandler = asio::awaitable<void> (MessagesProcessor::*)(std::vector<TgBot::Message::Ptr>);
     class MessageCollector : public std::enable_shared_from_this<MessageCollector>
     {
@@ -97,57 +98,9 @@ class MessagesProcessor
         }
     };
 
-    struct ContentPart
-    {
-        std::string id;
-        std::string base64;
-    };
-
-    struct MessageBuildInfo
-    {
-        openai::ChatIdType       chat;
-        std::string              message;
-        std::vector<ContentPart> images;
-
-        static dto::Content toMessage(MessageBuildInfo info)
-        {
-            if (info.images.empty())
-                return std::move(info.message);
-            std::vector<dto::ContentPart> res;
-            res.push_back(getTextPart(std::move(info.message)));
-
-            for (auto &&[id, b64] : info.images)
-            {
-                res.push_back(getTextPart("id следующего изображения = " + id));
-                res.push_back(getJpegPart(std::move(b64)));
-            }
-
-            return res;
-        }
-
-    private:
-        static dto::TextPart getTextPart(std::string msg)
-        {
-            dto::TextPart part;
-            part.text = std::move(msg);
-            return part;
-        }
-        static dto::ImagePart getJpegPart(std::string b64)
-        {
-            b64.insert(0, openai::HistoryUtils::getBase64JpegPrefix());
-
-            dto::ImageUrl url;
-            url.url = std::move(b64);
-
-            dto::ImagePart part;
-            part.image_url = std::move(url);
-            return part;
-        }
-    };
-
 public:
-    MessagesProcessor(transport::TgBotMessageSender &sender, core::Operator &op, store::ImageStore &store)
-        : sender_(sender), operator_(op), store_(store)
+    MessagesProcessor(transport::TgBotMessageSender &sender, core::Operator &op, store::ImageStore &store, tika::UnpackerAll &unpacker)
+        : sender_(sender), operator_(op), store_(store), unpacker_(unpacker)
     {
     }
 
@@ -222,47 +175,101 @@ private:
     transport::TgBotMessageSender &sender_;
     core::Operator                &operator_;
     store::ImageStore             &store_;
+    tika::UnpackerAll             &unpacker_;
 
     std::unordered_map<std::string, MessageCollector::Ptr> collections_;
 
 private:
+    inline dto::ImageFormat mimeTypeToFormat(std::string_view mimeType)
+    {
+        static const std::unordered_map<std::string_view, dto::ImageFormat> s_map = {
+            {"image/png",  dto::ImageFormat::png },
+            {"image/jpeg", dto::ImageFormat::jpeg},
+            {"image/jpg",  dto::ImageFormat::jpeg},
+            {"image/webp", dto::ImageFormat::webp},
+            {"image/gif",  dto::ImageFormat::gif },
+            {"image/tiff", dto::ImageFormat::tiff},
+            {"image/tif",  dto::ImageFormat::tiff},
+            {"image/bmp",  dto::ImageFormat::bmp },
+        };
+
+        if (auto it = s_map.find(mimeType); it != s_map.end())
+            return it->second;
+        return dto::ImageFormat::jpeg; // fallback
+    }
+
     asio::awaitable<void> processImages(openai::AdditionalsToMessage &adds)
     {
 
         co_return;
     }
 
-    asio::awaitable<std::optional<ContentPart>> addPhoto(std::vector<TgBot::PhotoSize::Ptr> &photos)
+    asio::awaitable<void> addPhoto(std::vector<TgBot::PhotoSize::Ptr> &photos, MessageBuildInfo &info)
     {
         if (photos.empty())
-            co_return std::nullopt;
+            co_return;
 
-        // Telegram присылает варианты одного фото по возрастанию разрешения:
-        // последний — самый крупный из доступных. Оригинал приходит только
-        // документом, фото всегда пережато.
         const TgBot::PhotoSize::Ptr &photo = photos.back();
 
         TgBot::File::Ptr file = co_await sender_.getFile(photo->fileId);
         if (!file || !file->filePath)
-            co_return std::nullopt;
+            co_return;
 
         std::string binFile = co_await sender_.downloadFile(std::move(file->filePath.value()));
 
         auto base64Pr = utils::Base64::encode(binFile);
         if (!base64Pr)
-            co_return std::nullopt;
+            co_return;
 
         // Размеры Telegram сообщает сам, разбирать заголовок картинки не нужно.
         store::ImageEntry entry;
-        entry.format = dto::ImageOutputFormat::jpeg; // photo всегда пережато в jpeg
+        entry.format = dto::ImageFormat::jpeg; // photo всегда пережато в jpeg
         entry.size = store::ImageEntry::makeSize(photo->width, photo->height);
         entry.data = std::move(binFile);
 
         ContentPart res;
-        res.base64 = base64Pr.value();
+        res.data = std::move(base64Pr.value());
         res.id = store_.saveImage(std::move(entry));
+        info.images.push_back(res);
+    }
+    asio::awaitable<void> addFile(TgBot::Document &doc, MessageBuildInfo &info)
+    {
+        TgBot::File::Ptr file = co_await sender_.getFile(doc.fileId);
+        if (!file || !file->filePath)
+            co_return;
 
-        co_return res;
+        std::string binFile = co_await sender_.downloadFile(std::move(file->filePath.value()));
+
+        auto unpackRes = co_await unpacker_.unpackAll(std::move(binFile), doc.fileName.value_or("unknown-file-name"));
+        if (!unpackRes)
+        {
+            std::cout << "Error of unpack: " << unpackRes.error().message() << '\n';
+            co_return;
+        }
+
+        for (auto &&img : unpackRes->imageFiles)
+        {
+            auto base64Pr = utils::Base64::encode(binFile);
+            if (!base64Pr)
+                continue;
+            store::ImageEntry entry;
+            entry.format = mimeTypeToFormat(img.type);
+            entry.size = store::ImageEntry::makeSize(img.width, img.height);
+            entry.data = std::move(binFile);
+
+            ContentPart res;
+            res.data = std::move(base64Pr.value());
+            res.id = store_.saveImage(std::move(entry));
+            info.images.push_back(std::move(res));
+        }
+        for (auto &&file : unpackRes->textParsedFiles)
+        {
+            ContentPart filePart;
+            filePart.data = std::move(file.data);
+            filePart.id = std::move(file.fileName);
+            info.files.push_back(std::move(filePart));
+        }
+        co_return;
     }
 
     asio::awaitable<void> appendSendDataFromMessage(MessageBuildInfo &info, TgBot::Message::Ptr msg)
@@ -275,11 +282,9 @@ private:
             info.chat = msg->chat->id;
 
         if (msg->photo && !msg->photo->empty())
-        {
-            auto imageId = co_await addPhoto(msg->photo.value());
-            if (imageId)
-                info.images.push_back(std::move(imageId.value()));
-        }
+            co_await addPhoto(msg->photo.value(), info);
+        if (msg->document)
+            co_await addFile(*msg->document.get(), info);
     }
 
     asio::awaitable<void> collect(TgBot::Message::Ptr msg, MessagesHandler handler)
