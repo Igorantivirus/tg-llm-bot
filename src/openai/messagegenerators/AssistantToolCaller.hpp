@@ -20,8 +20,8 @@ public:
     };
 
 public:
-    AssistantToolCaller(const std::unordered_map<std::string, Tool::Ptr> &tools)
-        : tools_(tools)
+    AssistantToolCaller(const std::unordered_map<std::string, Tool::Ptr> &tools, ToolContext context)
+        : tools_(tools), context_(context)
     {
     }
 
@@ -36,7 +36,7 @@ public:
             auto found = tools_.find(tcl.function->name.value());
             if (found == tools_.end())
                 continue;
-            auto [dto, ptr] = co_await callToolToMessage(found->second, tcl.function->arguments.value(), tcl.id.value());
+            auto [dto, ptr] = co_await callToolToMessage(found->second, tcl.function->arguments.value(), tcl.id.value(), context_);
             result.fragment.push_back(std::move(dto));
             // Неудачный вызов не даёт результата: текст ошибки уже ушёл модели в dto.content.
             // В results попадают только валидные указатели — потребители на это рассчитывают.
@@ -48,11 +48,12 @@ public:
 
 private:
     const std::unordered_map<std::string, Tool::Ptr> &tools_;
+    ToolContext                                       context_;
 
 private:
-    static asio::awaitable<std::pair<dto::Message, ToolResult::Ptr>> callToolToMessage(const Tool::Ptr &tool, const std::string &args, std::string toolCallId)
+    static asio::awaitable<std::pair<dto::Message, ToolResult::Ptr>> callToolToMessage(const Tool::Ptr &tool, const std::string &args, std::string toolCallId, ToolContext context)
     {
-        auto         callResult = co_await tool->run(args);
+        auto         callResult = co_await tool->run(args, context);
         dto::Message msg;
         msg.role = dto::Role::tool;
         msg.tool_call_id = toolCallId;

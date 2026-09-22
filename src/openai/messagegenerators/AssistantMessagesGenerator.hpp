@@ -19,7 +19,7 @@ public:
     AssistantMessagesGenerator(Api &api, const ChatIdType chatId, dto::Message msg, ChatsSettings &setts)
         : api_(api),
           chatId_(chatId),
-          tcler_(setts.tools()),
+          tcler_(setts.tools(), ToolContext{.chatId = chatId, .history = &setts.repo().getHistoryById(chatId)}),
           setts_(setts)
     {
         accumulator_.addMessage(std::move(msg));
