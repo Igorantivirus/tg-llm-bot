@@ -10,6 +10,7 @@ namespace openai
 struct ChatHistory
 {
     std::string                 model;
+    std::string                 imgModel; // модель для генерации и редактирования картинок
     std::string                 system;
     dto::ReasoningEffort        effort;
     std::vector<DialogFragment> history;

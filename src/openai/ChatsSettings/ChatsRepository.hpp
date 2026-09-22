@@ -11,14 +11,19 @@ namespace openai
 class ChatsRepository
 {
 public:
-    ChatsRepository(std::string defaultModel, dto::ReasoningEffort defaultEffort)
-        : defaultModel_(defaultModel), defaultEffort_(defaultEffort)
+    ChatsRepository(std::string defaultModel, std::string defaultImgModel, dto::ReasoningEffort defaultEffort)
+        : defaultModel_(std::move(defaultModel)), defaultImgModel_(std::move(defaultImgModel)), defaultEffort_(defaultEffort)
     {
     }
 
     void setModel(const ChatIdType id, std::string model)
     {
         histories_[id].model = std::move(model);
+    }
+
+    void setImgModel(const ChatIdType id, std::string model)
+    {
+        histories_[id].imgModel = std::move(model);
     }
 
     void setEffort(const ChatIdType id, dto::ReasoningEffort effort)
@@ -60,6 +65,7 @@ public:
         if (inserted)
         {
             it->second.model = defaultModel_;
+            it->second.imgModel = defaultImgModel_;
             it->second.effort = defaultEffort_;
         }
         return it->second;
@@ -68,6 +74,7 @@ public:
 private:
     std::unordered_map<ChatIdType, ChatHistory> histories_;
     std::string                                 defaultModel_;
+    std::string                                 defaultImgModel_;
     dto::ReasoningEffort                        defaultEffort_;
 };
 } // namespace openai
