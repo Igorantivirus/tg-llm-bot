@@ -49,6 +49,7 @@ public:
         // Задачи
         reg_.registrateCommand(cmnds.system.command, &handlers::CommandsProcessor::system, &PermissionChecker::checkBaseCommand, {0, 1, true});
         reg_.registrateCommand(cmnds.model.command, &handlers::CommandsProcessor::model, &PermissionChecker::checkBaseCommand, {0, 0});
+        reg_.registrateCommand(cmnds.imgmodel.command, &handlers::CommandsProcessor::imgModel, &PermissionChecker::checkBaseCommand, {0, 0});
         reg_.registrateCommand(cmnds.effort.command, &handlers::CommandsProcessor::effort, &PermissionChecker::checkBaseCommand, {0, 0});
         // Доступ
         reg_.registrateCommand(cmnds.make_admin.command, &handlers::CommandsProcessor::makeAdmin, &PermissionChecker::checkPermissionCommand, {1, 1});
@@ -61,6 +62,7 @@ public:
         reg_.registrateCommand(cmnds.remove_chat.command, &handlers::CommandsProcessor::removeChat, &PermissionChecker::checkPermissionCommand, {0, 1});
         // Query
         reg_.registrateQuery(transport::OperationType::SetMdl, &handlers::QueryProcessor::setModel, &PermissionChecker::checkBaseCommand);
+        reg_.registrateQuery(transport::OperationType::SetImgMdl, &handlers::QueryProcessor::setImgModel, &PermissionChecker::checkBaseCommand);
         reg_.registrateQuery(transport::OperationType::SetEfr, &handlers::QueryProcessor::setEffort, &PermissionChecker::checkBaseCommand);
         reg_.registrateQuery(transport::OperationType::Close, &handlers::QueryProcessor::close, &PermissionChecker::checkBaseCommand);
         // Сообщения
