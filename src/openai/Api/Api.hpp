@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <net/HttpClient.hpp>
+#include <utils/MultipartBuilder.hpp>
 #include <utils/Parser.hpp>
 #include <utils/Types.hpp>
 
@@ -49,9 +50,42 @@ public:
         co_return co_await imagesRequest("/v1/images/generations", std::move(dto));
     }
 
+    /// @brief Редактирование: эндпоинт принимает только multipart/form-data,
+    /// поэтому тело собирается вручную, а не сериализуется из dto.
     utils::AsyncResult<dto::ImageResponse> imagesEdit(dto::EditImageRequest dto)
     {
-        co_return co_await imagesRequest("/v1/images/edits", std::move(dto));
+        if (dto.images.empty())
+            co_return std::unexpected(Error::EmptyImagesToEdit);
+
+        utils::MultipartBuilder mp;
+        mp.reserve(multipartBodySize(dto));
+
+        mp.addField("prompt", dto.prompt);
+        // Несколько картинок OpenAI ждёт под именем "image[]", одну — под "image".
+        const std::string_view imageField = dto.images.size() > 1 ? "image[]" : "image";
+        for (const auto &image : dto.images)
+            addImagePart(mp, imageField, "image", image);
+        if (dto.mask)
+            addImagePart(mp, "mask", "mask", dto.mask.value());
+
+
+        addOptionalField(mp, "model", dto.model);
+        addOptionalField(mp, "size", dto.size);
+        addOptionalField(mp, "user", dto.user);
+        if (dto.n)
+            mp.addField("n", std::to_string(dto.n.value()));
+        if (auto field = enumField(dto.quality); field)
+            mp.addField("quality", field.value());
+        if (auto field = enumField(dto.background); field)
+            mp.addField("background", field.value());
+        if (auto field = enumField(dto.output_format); field)
+            mp.addField("output_format", field.value());
+
+        net::BeastRequest req(http::verb::post, "/v1/images/edits", 11);
+        req.body() = mp.finish();
+        initRequestFields(req, mp.contentType());
+
+        co_return co_await sendImagesRequest(std::move(req));
     }
 
     utils::AsyncResult<ApiResponseGenerator> chatCompletions(dto::ChatCompletionsRequest dto)
@@ -112,8 +146,7 @@ private:
     }
 
 private:
-    /// @brief Общее тело для images-эндпоинтов: генерация и редактирование
-    /// отличаются только путём и типом запроса.
+    /// @brief JSON-вариант images-запроса (генерация).
     template <typename Dto>
     utils::AsyncResult<dto::ImageResponse> imagesRequest(const std::string_view path, Dto dto)
     {
@@ -124,6 +157,12 @@ private:
             co_return std::unexpected(sdto.error());
         initRequestFields(req);
 
+        co_return co_await sendImagesRequest(std::move(req));
+    }
+
+    /// @brief Отправка и разбор ответа, общие для обоих images-эндпоинтов.
+    utils::AsyncResult<dto::ImageResponse> sendImagesRequest(net::BeastRequest req)
+    {
         auto res = co_await http_.request(host_, port_, std::move(req));
         if (!res)
             co_return std::unexpected(res.error());
@@ -139,11 +178,50 @@ private:
         co_return utils::deserialize<dto::ImageResponse>(resp.stringBody());
     }
 
+    static void addImagePart(utils::MultipartBuilder &mp, const std::string_view partName, const std::string_view baseName, const dto::ImageFile &image)
+    {
+        mp.addFile(partName, std::string(baseName) + '.' + std::string(image.extension()), image.mimeType(), image.data);
+    }
+
+    static void addOptionalField(utils::MultipartBuilder &mp, const std::string_view name, const std::optional<std::string> &value)
+    {
+        if (value)
+            mp.addField(name, value.value());
+    }
+
+    /// @brief Имя enum-значения так, как его ждёт сервер (с учётом переименований Jsonser).
+    template <typename E>
+    static std::optional<std::string> enumField(const std::optional<E> &value)
+    {
+        if (!value)
+            return std::nullopt;
+        const auto index = magic_enum::enum_index(value.value());
+        if (!index)
+            return std::nullopt;
+        static constexpr auto names = jsonser::getEnumNames<E>();
+        if (!names[*index])
+            return std::nullopt;
+        return std::string(names[*index].value());
+    }
+
+    /// @brief Оценка размера тела: картинки плюс запас на заголовки частей.
+    static std::size_t multipartBodySize(const dto::EditImageRequest &dto)
+    {
+        static constexpr std::size_t partOverhead = 256;
+
+        std::size_t size = dto.prompt.size() + partOverhead * 12;
+        for (const auto &image : dto.images)
+            size += image.data.size() + partOverhead;
+        if (dto.mask)
+            size += dto.mask.value().data.size() + partOverhead;
+        return size;
+    }
+
 private:
-    void initRequestFields(net::BeastRequest &req) const
+    void initRequestFields(net::BeastRequest &req, const std::string_view contentType = "application/json") const
     {
         req.set(http::field::host, fullHost_);
-        req.set(http::field::content_type, "application/json");
+        req.set(http::field::content_type, contentType);
         req.set(http::field::authorization, authorization_);
         req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
         req.prepare_payload();
