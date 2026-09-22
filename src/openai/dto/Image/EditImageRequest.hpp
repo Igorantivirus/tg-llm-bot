@@ -3,18 +3,13 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "ImageEnums.hpp"
 
 namespace dto
 {
-
-struct ImageReference
-{
-    std::optional<std::string> file_id;   // id файла, загруженного через File API ("file-...")
-    std::optional<std::string> image_url; // полный https URL ИЛИ data-URL: "data:image/png;base64,iVBOR..."; макс. длина строки 20971520
-};
 
 enum class ImageInputFidelity : std::uint8_t
 {
@@ -23,14 +18,59 @@ enum class ImageInputFidelity : std::uint8_t
 };
 
 // ----------------------------------------------------------------------------
-// POST /v1/images/edits   (JSON-вариант; есть также multipart с image[]=@file)
+// POST /v1/images/edits
+//
+// В отличие от /v1/images/generations этот эндпоинт принимает только
+// multipart/form-data: картинки уходят сырыми байтами отдельными частями тела.
+// Поэтому структура не сериализуется через Jsonser — поля раскладывает по
+// частям Api::imagesEdit. Запрет на сериализацию обеспечен наличием
+// пользовательского конструктора: тип перестаёт быть агрегатом, и Jsonser
+// сообщит об этом ошибкой вместо того, чтобы молча собрать неверный JSON.
 // ----------------------------------------------------------------------------
+/// @brief Картинка для multipart-части: байты вместе с форматом, чтобы
+/// объявить корректные mime и filename, не разбирая сигнатуру файла.
+struct ImageFile
+{
+    std::string            data;
+    dto::ImageOutputFormat format = dto::ImageOutputFormat::png;
+
+    std::string_view mimeType() const
+    {
+        switch (format)
+        {
+        case dto::ImageOutputFormat::png:
+            return "image/png";
+        case dto::ImageOutputFormat::webp:
+            return "image/webp";
+        default:
+            return "image/jpeg";
+        }
+    }
+
+    std::string_view extension() const
+    {
+        switch (format)
+        {
+        case dto::ImageOutputFormat::png:
+            return "png";
+        case dto::ImageOutputFormat::webp:
+            return "webp";
+        default:
+            return "jpg";
+        }
+    }
+};
+
 struct EditImageRequest
 {
-    std::vector<ImageReference> images; // required; 1..16 для GPT-image
-    std::string                 prompt; // required; 1..32000 симв.
+    EditImageRequest() noexcept
+    {
+    }
 
-    std::optional<ImageReference>     mask;               // маска инпейнтинга; прозрачные области = заменяемые
+    std::vector<ImageFile> images; // required; part name "image" (или "image[]" для нескольких)
+    std::string            prompt; // required; 1..32000 симв.
+
+    std::optional<ImageFile>          mask;               // маска инпейнтинга; прозрачные области = заменяемые
     std::optional<ImageInputFidelity> input_fidelity;     //
     std::optional<std::string>        model;              //
     std::optional<unsigned short>     n;                  //
