@@ -238,7 +238,7 @@ private:
         dto::GenerateImageRequest req;
         req.prompt = std::move(params.prompt);
         req.n = params.image_count;
-        req.model = config_.generationModel;
+        req.model = config_.defaultModel; // TODO: брать модель из настроек чата
         req.size = sizeByAspectRatio(params.aspect_ratio.value_or(AspectRatioType::square));
 
         co_return co_await api_.imagesGeneration(std::move(req));
@@ -249,7 +249,7 @@ private:
         dto::EditImageRequest req;
         req.prompt = std::move(params.prompt);
         req.n = params.image_count;
-        req.model = config_.editionModel;
+        req.model = config_.defaultModel; // TODO: брать модель из настроек чата
 
         // В multipart картинки уходят сырыми байтами, base64 не нужен.
         req.images.reserve(params.image_ids.size());
