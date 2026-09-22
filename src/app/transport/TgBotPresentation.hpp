@@ -83,6 +83,12 @@ public:
         std::ignore = co_await sender_.sendMessage(info->getChatId(), "Выберите модель", std::move(kb));
         co_return;
     }
+    asio::awaitable<void> presentImgModels(core::OperationInfo::Ptr info, std::unordered_set<std::string> models, std::string curModel) override
+    {
+        TgBot::InlineKeyboardMarkup::Ptr kb = KeyBoardGenerate::generateForModels(models, curModel, OperationType::SetImgMdl);
+        std::ignore = co_await sender_.sendMessage(info->getChatId(), "Выберите модель для генерации картинок", std::move(kb));
+        co_return;
+    }
     asio::awaitable<void> presentEfforts(core::OperationInfo::Ptr info, std::unordered_set<dto::ReasoningEffort> efforts, dto::ReasoningEffort curEff) override
     {
         TgBot::InlineKeyboardMarkup::Ptr kb = KeyBoardGenerate::generateForEfforts(efforts, curEff);

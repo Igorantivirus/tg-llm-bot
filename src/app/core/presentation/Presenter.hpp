@@ -21,6 +21,7 @@ public:
     virtual asio::awaitable<void> presentError(OperationInfo::Ptr, const utils::ErrorCode) = 0;
 
     virtual asio::awaitable<void> presentModels(OperationInfo::Ptr, std::unordered_set<std::string>, std::string) = 0;
+    virtual asio::awaitable<void> presentImgModels(OperationInfo::Ptr, std::unordered_set<std::string>, std::string) = 0;
     virtual asio::awaitable<void> presentEfforts(OperationInfo::Ptr, std::unordered_set<dto::ReasoningEffort>, dto::ReasoningEffort) = 0;
 
     virtual asio::awaitable<void> presentSystem(OperationInfo::Ptr, std::string) = 0;
