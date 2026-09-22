@@ -14,11 +14,13 @@ namespace transport
 class KeyBoardGenerate
 {
 public:
-    static TgBot::InlineKeyboardMarkup::Ptr generateForModels(const std::unordered_set<std::string> &models, std::string current)
+    /// @brief Список моделей одинаков для текста и картинок, различается только
+    /// тип операции: он решает, какая настройка чата будет изменена по нажатию.
+    static TgBot::InlineKeyboardMarkup::Ptr generateForModels(const std::unordered_set<std::string> &models, std::string current, const OperationType type = OperationType::SetMdl)
     {
         auto kb = std::make_shared<TgBot::InlineKeyboardMarkup>();
         for (const auto &model : models)
-            if (auto button = makeButton(Operation(OperationType::SetMdl, model), model == current ? "✅ " + model : model))
+            if (auto button = makeButton(Operation(type, model), model == current ? "✅ " + model : model))
                 kb->inlineKeyboard.push_back({button});
         if (auto button = makeButton(Operation(OperationType::Close), "Закрыть"))
             kb->inlineKeyboard.push_back({button});
