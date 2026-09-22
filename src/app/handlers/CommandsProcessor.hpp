@@ -48,6 +48,11 @@ public:
         core::OperationInfo::Ptr info = std::make_shared<core::OperationInfo>(msg->chat->id);
         co_await operator_.presentModels(info);
     }
+    boost::asio::awaitable<void> imgModel(std::vector<std::string>, TgBot::Message::Ptr msg)
+    {
+        core::OperationInfo::Ptr info = std::make_shared<core::OperationInfo>(msg->chat->id);
+        co_await operator_.presentImgModels(info);
+    }
     boost::asio::awaitable<void> effort(std::vector<std::string> args, TgBot::Message::Ptr msg)
     {
         core::OperationInfo::Ptr info = std::make_shared<core::OperationInfo>(msg->chat->id);

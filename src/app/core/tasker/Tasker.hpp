@@ -68,6 +68,19 @@ public:
             proc_.settings().repo().setModel(info->getChatId(), std::move(model));
         co_return;
     }
+    // img models
+    asio::awaitable<void> presentImgModels(OperationInfo::Ptr info)
+    {
+        co_await presenter_.presentImgModels(info, proc_.settings().models(), proc_.settings().repo().getHistoryById(info->getChatId()).imgModel);
+    }
+    asio::awaitable<void> setImgModel(OperationInfo::Ptr info, std::string model)
+    {
+        if (!proc_.settings().models().contains(model))
+            co_await presenter_.presentInfo(std::move(info), InfoType::ModelNotSetedNoExist);
+        else
+            proc_.settings().repo().setImgModel(info->getChatId(), std::move(model));
+        co_return;
+    }
     // effort
     asio::awaitable<void> presentEfforts(OperationInfo::Ptr info)
     {

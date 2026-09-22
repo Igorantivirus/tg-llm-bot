@@ -55,6 +55,14 @@ public:
     {
         processTask(co_await asio::this_coro::executor, info, 0, tasker_.setModel(info, std::move(model)));
     }
+    asio::awaitable<void> presentImgModels(OperationInfo::Ptr info)
+    {
+        processTask(co_await asio::this_coro::executor, info, 0, tasker_.presentImgModels(info));
+    }
+    asio::awaitable<void> setImgModel(OperationInfo::Ptr info, std::string model)
+    {
+        processTask(co_await asio::this_coro::executor, info, 0, tasker_.setImgModel(info, std::move(model)));
+    }
     asio::awaitable<void> presentEfforts(OperationInfo::Ptr info)
     {
         processTask(co_await asio::this_coro::executor, info, 0, tasker_.presentEfforts(info));
