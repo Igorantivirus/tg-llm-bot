@@ -1,6 +1,7 @@
 #pragma once
 
 #include "store/ImageStore.hpp"
+#include "tika/UnpackerAll.hpp"
 #include "utils/Types.hpp"
 #include <app/handlers/QueryProcessor.hpp>
 #include <app/tools/CreateImage.hpp>
@@ -49,8 +50,10 @@ public:
           permReadWriter_(data_, config.accessRightsFile),
           editor(data_),
 
+          unpacker_(io_.get_executor(), config.tcpSocketsCount),
+
           cmdProc_(sender_, operator_, config.locale, editor, permReadWriter_),
-          msgProc_(sender_, operator_, imgStore_),
+          msgProc_(sender_, operator_, imgStore_, unpacker_),
           queProc_(sender_, operator_, config.locale),
 
           checker_(data_),
@@ -93,6 +96,7 @@ private:
     permissions::Editor      editor;
 
     store::ImageStore imgStore_;
+    tika::UnpackerAll unpacker_;
 
     handlers::CommandsProcessor cmdProc_;
     handlers::MessagesProcessor msgProc_;
