@@ -6,7 +6,10 @@
 
 #include <utils/Types.hpp>
 
+#include <openai/chatssettings/ChatHistory.hpp>
+#include <openai/chatssettings/Types.hpp>
 #include <openai/dto/ChatCompletions/Tools.hpp>
+#include <openai/Tools/ToolContext.hpp>
 
 namespace openai
 {
@@ -19,7 +22,7 @@ public:
 public:
     virtual ~Tool() = default;
 
-    virtual utils::AsyncResult<ToolResult::Ptr> run(std::string args) = 0;
+    virtual utils::AsyncResult<ToolResult::Ptr> run(std::string args, ToolContext context) = 0;
 
     virtual std::string         name() const = 0;
     virtual std::string         description() const = 0;

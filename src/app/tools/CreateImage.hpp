@@ -127,23 +127,28 @@ public:
     };
 
 public:
-    CreateImage(openai::Api &api, store::ImageStore &imgStore, config::ImagesConfig config)
-        : api_(api), imgStore_(imgStore), config_(std::move(config))
+    CreateImage(openai::Api &api, store::ImageStore &imgStore, config::AspectRatios ratios)
+        : api_(api), imgStore_(imgStore), ratios_(std::move(ratios))
     {
     }
 
-    utils::AsyncResult<openai::ToolResult::Ptr> run(std::string args) override
+    utils::AsyncResult<openai::ToolResult::Ptr> run(std::string args, openai::ToolContext context) override
     {
         auto dto = utils::deserialize<Params>(args);
         if (!dto)
             co_return std::unexpected(dto.error());
         Params params = std::move(dto.value());
 
+        // Без модели картинок инструмент работать не может, а подставлять её за
+        // пользователя нельзя: он выбирает модель сам командой.
+        if (!context.history || context.history->imgModel.empty())
+            co_return std::unexpected(openai::Error::NoSetImgModel);
+
         // Редактирование запрашивается наличием картинок на входе, а не полем action:
         // модель заполняет action не всегда, а image_ids без редактирования бессмысленны.
         auto res = params.image_ids.empty()
-                       ? co_await generate(params)
-                       : co_await edit(params);
+                       ? co_await generate(params, context)
+                       : co_await edit(params, context);
         if (!res)
         {
             std::cout << "Create message error: " << res.error() << '\n';
@@ -230,26 +235,26 @@ public:
 private:
     openai::Api         &api_;
     store::ImageStore   &imgStore_;
-    config::ImagesConfig config_;
+    config::AspectRatios ratios_;
 
 private:
-    utils::AsyncResult<dto::ImageResponse> generate(Params &params)
+    utils::AsyncResult<dto::ImageResponse> generate(Params &params, const openai::ToolContext &context)
     {
         dto::GenerateImageRequest req;
         req.prompt = std::move(params.prompt);
         req.n = params.image_count;
-        req.model = config_.defaultModel; // TODO: брать модель из настроек чата
+        req.model = context.history->imgModel;
         req.size = sizeByAspectRatio(params.aspect_ratio.value_or(AspectRatioType::square));
 
         co_return co_await api_.imagesGeneration(std::move(req));
     }
 
-    utils::AsyncResult<dto::ImageResponse> edit(Params &params)
+    utils::AsyncResult<dto::ImageResponse> edit(Params &params, const openai::ToolContext &context)
     {
         dto::EditImageRequest req;
         req.prompt = std::move(params.prompt);
         req.n = params.image_count;
-        req.model = config_.defaultModel; // TODO: брать модель из настроек чата
+        req.model = context.history->imgModel;
 
         // В multipart картинки уходят сырыми байтами, base64 не нужен.
         req.images.reserve(params.image_ids.size());
@@ -277,11 +282,11 @@ private:
         switch (ratio)
         {
         case AspectRatioType::portrait:
-            return config_.aspectRatios.portrait;
+            return ratios_.portrait;
         case AspectRatioType::landscape:
-            return config_.aspectRatios.landscape;
+            return ratios_.landscape;
         default:
-            return config_.aspectRatios.square;
+            return ratios_.square;
         }
     }
 };
