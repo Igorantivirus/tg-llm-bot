@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Commands.hpp"
+#include "ImagesConfig.hpp"
 #include "Locale.hpp"
 #include "UrlConfig.hpp"
 #include "openai/dto/ChatCompletions/Request.hpp"
@@ -18,6 +19,7 @@ struct AppConfig
     std::string          accessRightsFile;
     std::uint8_t         threadCount;
     std::uint8_t         tcpSocketsCount;
+    ImagesConfig         images;
     AllCommands          commands;
     Locale               locale;
 };
