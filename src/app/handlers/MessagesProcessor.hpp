@@ -1,5 +1,6 @@
 #pragma once
 
+#include "app/store/ImageEntry.hpp"
 #include "app/transport/TgBotMessageSender.hpp"
 #include "openai/chatssettings/AdditionalsToMessage.hpp"
 #include "openai/chatssettings/HistoryUtils.hpp"
@@ -233,8 +234,15 @@ private:
 
     asio::awaitable<std::optional<ContentPart>> addPhoto(std::vector<TgBot::PhotoSize::Ptr> &photos)
     {
-        std::string      fileId = photos.at(0)->fileId;
-        TgBot::File::Ptr file = co_await sender_.getFile(std::move(fileId));
+        if (photos.empty())
+            co_return std::nullopt;
+
+        // Telegram присылает варианты одного фото по возрастанию разрешения:
+        // последний — самый крупный из доступных. Оригинал приходит только
+        // документом, фото всегда пережато.
+        const TgBot::PhotoSize::Ptr &photo = photos.back();
+
+        TgBot::File::Ptr file = co_await sender_.getFile(photo->fileId);
         if (!file || !file->filePath)
             co_return std::nullopt;
 
@@ -244,9 +252,15 @@ private:
         if (!base64Pr)
             co_return std::nullopt;
 
+        // Размеры Telegram сообщает сам, разбирать заголовок картинки не нужно.
+        store::ImageEntry entry;
+        entry.format = dto::ImageOutputFormat::jpeg; // photo всегда пережато в jpeg
+        entry.size = store::ImageEntry::makeSize(photo->width, photo->height);
+        entry.data = std::move(binFile);
+
         ContentPart res;
         res.base64 = base64Pr.value();
-        res.id = store_.saveImage(std::move(binFile));
+        res.id = store_.saveImage(std::move(entry));
 
         co_return res;
     }
