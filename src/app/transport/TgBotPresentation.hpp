@@ -124,7 +124,7 @@ private:
                 for (const auto &img : dto.data.value())
                 {
                     if (img.b64_json)
-                        co_await sender_.sendPhotob64(chatId, img.b64_json.value(), dto.output_format ? dto.output_format.value() : dto::ImageOutputFormat::jpeg);
+                        co_await sender_.sendPhotob64(chatId, img.b64_json.value(), dto.output_format ? dto.output_format.value() : dto::ImageFormat::jpeg);
                 }
             }
         }
