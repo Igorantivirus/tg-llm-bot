@@ -66,7 +66,7 @@ public:
                 std::cout << "Error init models: " << res.error().message() << '\n';
         });
 
-        proc_.addTool(std::make_unique<tools::CreateImage>(proc_.getApi(), imgStore_, std::move(config.images)));
+        proc_.addTool(std::make_unique<tools::CreateImage>(proc_.getApi(), imgStore_, std::move(config.images.aspectRatios)));
     }
 
     int run()
