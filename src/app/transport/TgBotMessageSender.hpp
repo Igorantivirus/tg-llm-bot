@@ -79,14 +79,14 @@ public:
         });
         co_return;
     }
-    asio::awaitable<void> sendPhotob64(app::ChatId id, const std::string &base64Photo, dto::ImageOutputFormat format)
+    asio::awaitable<void> sendPhotob64(app::ChatId id, const std::string &base64Photo, dto::ImageFormat format)
     {
         auto res = co_await redirector_.call([id, base64Photo = &base64Photo, format](const TgBot::Api &api) -> void
         {
             auto bytes = utils::Base64::decode(*base64Photo);
             if (!bytes)
                 return;
-            std::string mimeType = (format == dto::ImageOutputFormat::png) ? "image/png" : ((format == dto::ImageOutputFormat::webp) ? "image/webp" : "image/jpeg");
+            std::string mimeType = (format == dto::ImageFormat::png) ? "image/png" : ((format == dto::ImageFormat::webp) ? "image/webp" : "image/jpeg");
 
             auto inputFile = std::make_shared<TgBot::InputFile>();
             inputFile->data = std::move(bytes.value());

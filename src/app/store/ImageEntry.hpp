@@ -18,7 +18,7 @@ namespace store
 struct ImageEntry
 {
     std::string                data;
-    dto::ImageOutputFormat     format = dto::ImageOutputFormat::png;
+    dto::ImageFormat     format = dto::ImageFormat::png;
     std::optional<std::string> size; // "ШИРИНАxВЫСОТА", как его понимает images API
 
     static std::string makeSize(const std::int32_t width, const std::int32_t height)

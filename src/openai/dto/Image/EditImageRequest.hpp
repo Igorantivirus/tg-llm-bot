@@ -32,15 +32,15 @@ enum class ImageInputFidelity : std::uint8_t
 struct ImageFile
 {
     std::string            data;
-    dto::ImageOutputFormat format = dto::ImageOutputFormat::png;
+    dto::ImageFormat format = dto::ImageFormat::png;
 
     std::string_view mimeType() const
     {
         switch (format)
         {
-        case dto::ImageOutputFormat::png:
+        case dto::ImageFormat::png:
             return "image/png";
-        case dto::ImageOutputFormat::webp:
+        case dto::ImageFormat::webp:
             return "image/webp";
         default:
             return "image/jpeg";
@@ -51,9 +51,9 @@ struct ImageFile
     {
         switch (format)
         {
-        case dto::ImageOutputFormat::png:
+        case dto::ImageFormat::png:
             return "png";
-        case dto::ImageOutputFormat::webp:
+        case dto::ImageFormat::webp:
             return "webp";
         default:
             return "jpg";
@@ -77,7 +77,7 @@ struct EditImageRequest
     std::optional<std::string>        size;               //
     std::optional<ImageQuality>       quality;            //
     std::optional<ImageBackground>    background;         //
-    std::optional<ImageOutputFormat>  output_format;      //
+    std::optional<ImageFormat>  output_format;      //
     std::optional<unsigned short>     output_compression; // 0..100; только для "jpeg" | "webp"
     std::optional<ImageModeration>    moderation;         //
     std::optional<bool>               stream;             //

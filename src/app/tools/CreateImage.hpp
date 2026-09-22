@@ -46,7 +46,7 @@ public:
 
             // Формат и размер берём из ответа: images API сообщает их сам.
             store::ImageEntry entry;
-            entry.format = dto_.output_format.value_or(dto::ImageOutputFormat::png);
+            entry.format = dto_.output_format.value_or(dto::ImageFormat::png);
             entry.size = dto_.size;
             entry.data = std::move(binImagePr.value());
 

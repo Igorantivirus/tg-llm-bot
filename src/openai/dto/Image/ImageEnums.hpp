@@ -32,10 +32,13 @@ enum class ImageModeration : std::uint8_t
 };
 JSONSER_ENUM(ImageModeration, auto_, "auto");
 
-enum class ImageOutputFormat : std::uint8_t
+enum class ImageFormat : std::uint8_t
 {
     png,
     jpeg,
-    webp
+    webp,
+    gif,
+    tiff,
+    bmp
 };
 } // namespace dto

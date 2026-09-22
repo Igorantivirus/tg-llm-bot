@@ -34,7 +34,7 @@ struct GenerateImageRequest
     std::optional<std::string>         size;
     std::optional<ImageQuality>        quality;
     std::optional<ImageBackground>     background;
-    std::optional<ImageOutputFormat>   output_format;
+    std::optional<ImageFormat>         output_format;
     std::optional<unsigned>            output_compression; // 0..100; только GPT-image с output_format "jpeg" или "webp"; default 100
     std::optional<ImageResponseFormat> response_format;
     std::optional<ImageStyle>          style;

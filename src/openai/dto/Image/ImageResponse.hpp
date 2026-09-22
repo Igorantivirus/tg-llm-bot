@@ -23,7 +23,7 @@ struct ImageResponse
 
     std::optional<std::vector<ImageData>> data;
     std::optional<ImageBackground>        background;
-    std::optional<ImageOutputFormat>      output_format;
+    std::optional<ImageFormat>      output_format;
     std::optional<ImageQuality>           quality;
     std::optional<std::string>            size;
     std::optional<ImageUsage>             usage;
