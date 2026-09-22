@@ -2,8 +2,10 @@
 
 #include "openai/chatssettings/HistoryUtils.hpp"
 #include "openai/dto/ChatCompletions/Message.hpp"
+#include <app/config/ImagesConfig.hpp>
 #include <app/store/ImageStore.hpp>
 #include <memory>
+#include <optional>
 #include <openai/Tools/Tool.hpp>
 #include <openai/api/Api.hpp>
 #include <openai/dto/Image/EditImageRequest.hpp>
@@ -41,7 +43,14 @@ public:
             auto binImagePr = utils::Base64::decode(img.b64_json.value());
             if (!binImagePr)
                 continue;
-            meta_.imageIds.push_back(imgStore.saveImage(std::move(binImagePr.value())));
+
+            // Формат и размер берём из ответа: images API сообщает их сам.
+            store::ImageEntry entry;
+            entry.format = dto_.output_format.value_or(dto::ImageOutputFormat::png);
+            entry.size = dto_.size;
+            entry.data = std::move(binImagePr.value());
+
+            meta_.imageIds.push_back(imgStore.saveImage(std::move(entry)));
         }
         meta_.size = dto_.size;
     }
@@ -93,10 +102,6 @@ private:
 class CreateImage : public openai::Tool
 {
 public:
-    // TODO: вынести в конфиг вместе с выбором модели
-    static inline const std::string generationModel = "qwen-edit-nsfw";
-    static inline const std::string editionModel = "qwen-edit-nsfw";
-
     enum class ActionType
     {
         generate,
@@ -110,18 +115,20 @@ public:
     };
     struct Params
     {
-        std::string              prompt;
-        ActionType               action = ActionType::generate;
-        AspectRatioType          aspect_ratio = AspectRatioType::square;
-        unsigned short           image_count = 1;
+        std::string prompt;
+        ActionType  action = ActionType::generate;
+        /// Пустое означает «модель не выбирала»: при редактировании тогда
+        /// наследуется размер оригинала, при генерации берётся square.
+        std::optional<AspectRatioType> aspect_ratio;
+        unsigned short                 image_count = 1;
         /// Непустой список означает редактирование: эти картинки берутся из store
         /// и уходят в модель редактирования вместе с промтом.
         std::vector<std::string> image_ids;
     };
 
 public:
-    CreateImage(openai::Api &api, store::ImageStore &imgStore)
-        : api_(api), imgStore_(imgStore)
+    CreateImage(openai::Api &api, store::ImageStore &imgStore, config::ImagesConfig config)
+        : api_(api), imgStore_(imgStore), config_(std::move(config))
     {
     }
 
@@ -151,7 +158,9 @@ public:
     }
     std::string description() const override
     {
-        return "Generate a new image or edit the most recent image in the conversation.";
+        return "Produce a NEW image: either generate one from scratch, or edit existing images passed in image_ids. "
+               "Every call runs the image model and costs time, so call it only when the user asks for a new or changed image. "
+               "This is not a way to display, resend or repeat an image that already exists: images produced earlier have already been delivered to the user.";
     }
     std::optional<dto::schema::Object> parameters() const override
     {
@@ -183,7 +192,7 @@ public:
         dto::schema::String aspect_str;
         aspect_str.type = "string";
         aspect_str.enum_field = std::vector<std::string>{"square", "portrait", "landscape"};
-        aspect_str.description = "Choose based on intended use. Default to square when unclear.";
+        aspect_str.description = "Shape of the resulting image. When generating, choose based on intended use and default to square when unclear. When editing, omit it to keep the proportions of the source image, and set it only if the user asked to change the framing.";
         aspect_schema.value = std::move(aspect_str);
         properties["aspect_ratio"] = utils::NonNullCopybleUniquePtr<dto::schema::Schema>(std::move(aspect_schema));
 
@@ -219,8 +228,9 @@ public:
     }
 
 private:
-    openai::Api       &api_;
-    store::ImageStore &imgStore_;
+    openai::Api         &api_;
+    store::ImageStore   &imgStore_;
+    config::ImagesConfig config_;
 
 private:
     utils::AsyncResult<dto::ImageResponse> generate(Params &params)
@@ -228,7 +238,8 @@ private:
         dto::GenerateImageRequest req;
         req.prompt = std::move(params.prompt);
         req.n = params.image_count;
-        req.model = generationModel; // TODO: make change model
+        req.model = config_.generationModel;
+        req.size = sizeByAspectRatio(params.aspect_ratio.value_or(AspectRatioType::square));
 
         co_return co_await api_.imagesGeneration(std::move(req));
     }
@@ -238,24 +249,40 @@ private:
         dto::EditImageRequest req;
         req.prompt = std::move(params.prompt);
         req.n = params.image_count;
-        req.model = editionModel; // TODO: make change model
+        req.model = config_.editionModel;
 
+        // В multipart картинки уходят сырыми байтами, base64 не нужен.
+        req.images.reserve(params.image_ids.size());
+        std::optional<std::string> sourceSize;
         for (const auto &id : params.image_ids)
         {
-            const std::string *imageBin = imgStore_.findImageById(id);
-            if (!imageBin)
+            const store::ImageEntry *entry = imgStore_.findImageById(id);
+            if (!entry)
                 co_return std::unexpected(openai::Error::UnknownImageId);
-
-            auto base64Pr = utils::Base64::encode(*imageBin);
-            if (!base64Pr)
-                co_return std::unexpected(base64Pr.error());
-
-            dto::ImageReference ref;
-            ref.image_url = openai::HistoryUtils::getBase64JpegPrefix() + base64Pr.value();
-            req.images.push_back(std::move(ref));
+            if (!sourceSize)
+                sourceSize = entry->size;
+            req.images.push_back(dto::ImageFile{.data = entry->data, .format = entry->format});
         }
 
+        // Входная картинка для модели редактирования — референс, а не канва:
+        // выходное разрешение может от неё отличаться. Поэтому соотношение задаёт
+        // модель, а размер оригинала остаётся запасным вариантом.
+        req.size = params.aspect_ratio ? sizeByAspectRatio(params.aspect_ratio.value()) : sourceSize;
+
         co_return co_await api_.imagesEdit(std::move(req));
+    }
+
+    std::string sizeByAspectRatio(const AspectRatioType ratio) const
+    {
+        switch (ratio)
+        {
+        case AspectRatioType::portrait:
+            return config_.aspectRatios.portrait;
+        case AspectRatioType::landscape:
+            return config_.aspectRatios.landscape;
+        default:
+            return config_.aspectRatios.square;
+        }
     }
 };
 } // namespace tools
