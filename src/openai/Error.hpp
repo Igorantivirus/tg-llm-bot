@@ -19,6 +19,7 @@ enum class Error : std::uint8_t
     UnsoportedStream,
     UnknownImageId,
     EmptyImagesToEdit,
+    NoSetImgModel,
     Unknown
 };
 constexpr const std::array<const char *, static_cast<std::size_t>(Error::Unknown) + 1> errorNames = {
@@ -35,6 +36,7 @@ constexpr const std::array<const char *, static_cast<std::size_t>(Error::Unknown
     "Streaming unsoported yet",
     "Unknown image id requested for edition",
     "No images passed to edition request",
+    "The image model is not installed",
     "Unknown"};
 } // namespace openai
 
