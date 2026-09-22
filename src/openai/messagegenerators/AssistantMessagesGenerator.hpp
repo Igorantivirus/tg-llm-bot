@@ -95,7 +95,14 @@ private:
     {
         std::vector<dto::ContentPart> content;
         dto::TextPart                 tp;
-        tp.text = "The results of the functions are attached by the system:";
+        // Роль user — единственная, где мультимодальный контент принимается и OpenAI,
+        // и локальными бэкендами, поэтому вставка помечается системной прямо в тексте.
+        // Без явного «уже доставлено» модель принимает результат за новую задачу и
+        // вызывает инструмент снова, чтобы «показать» картинку — получается петля.
+        tp.text = "[SYSTEM NOTICE, not a message from the user] The tool calls above are already finished and their results have been delivered to the user. "
+                  "The images below are attached only so that you can see what was produced. "
+                  "Do not call any tool again to show, resend or repeat them. "
+                  "Reply in the chat with a short comment about the result, or ask what to change next.";
         content.push_back(std::move(tp));
 
         for (auto &result : results)
