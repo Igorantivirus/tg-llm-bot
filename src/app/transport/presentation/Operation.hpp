@@ -7,9 +7,10 @@ namespace transport
 {
 enum class OperationType : std::uint8_t
 {
-    SetMdl, // Установить модель
-    SetEfr, // Установит effort
-    Close,  // Закрыть панель
+    SetMdl,    // Установить модель для текста
+    SetImgMdl, // Установить модель для картинок
+    SetEfr,    // Установит effort
+    Close,     // Закрыть панель
 };
 
 struct Operation

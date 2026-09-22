@@ -32,6 +32,13 @@ public:
         co_await sender_.answerCallBackQuery(query->id, locale_.modelSetted);
         co_await sender_.editMessage(msg->chat->id, msg->messageId, utils::Format::format(locale_.currentModel, oper.data));
     }
+    asio::awaitable<void> setImgModel(transport::Operation oper, TgBot::Message::Ptr msg, TgBot::CallbackQuery::Ptr query)
+    {
+        core::OperationInfo::Ptr info = std::make_shared<core::OperationInfo>(msg->chat->id);
+        co_await oper_.setImgModel(std::move(info), oper.data);
+        co_await sender_.answerCallBackQuery(query->id, locale_.modelSetted);
+        co_await sender_.editMessage(msg->chat->id, msg->messageId, utils::Format::format("Модель для картинок: {}", oper.data));
+    }
     asio::awaitable<void> setEffort(transport::Operation oper, TgBot::Message::Ptr msg, TgBot::CallbackQuery::Ptr query)
     {
         auto effortOpt = magic_enum::enum_cast<dto::ReasoningEffort>(oper.data);
