@@ -1,5 +1,6 @@
 #pragma once
 
+#include "magic_enum/magic_enum.hpp"
 #include <cstdint>
 
 #include <utils/Jsonser.hpp>
@@ -41,4 +42,25 @@ enum class ImageFormat : std::uint8_t
     tiff,
     bmp
 };
+
+inline std::string_view toStringFormat(const ImageFormat format)
+{
+    return magic_enum::enum_name(format);
+}
+
+inline std::string toStringMimeFormat(const ImageFormat format)
+{
+    std::string res;
+    res.reserve(12);
+    res = "image/";
+    res += magic_enum::enum_name(format);
+    return res;
+}
+inline std::optional<ImageFormat> toFormat(std::string_view sv)
+{
+    if(!sv.starts_with("image/"))
+        return std::nullopt;
+    return magic_enum::enum_cast<ImageFormat>(sv);
+}
+
 } // namespace dto

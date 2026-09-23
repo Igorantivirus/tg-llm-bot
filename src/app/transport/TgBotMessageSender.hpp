@@ -86,12 +86,12 @@ public:
             auto bytes = utils::Base64::decode(*base64Photo);
             if (!bytes)
                 return;
-            std::string mimeType = (format == dto::ImageFormat::png) ? "image/png" : ((format == dto::ImageFormat::webp) ? "image/webp" : "image/jpeg");
+            std::string mimeType = dto::toStringMimeFormat(format);
 
             auto inputFile = std::make_shared<TgBot::InputFile>();
             inputFile->data = std::move(bytes.value());
             inputFile->mimeType = mimeType;
-            inputFile->fileName = "image." + std::string(magic_enum::enum_name(format));
+            inputFile->fileName = "image." + std::string(dto::toStringFormat(format));
 
             api.sendPhoto(id, std::move(inputFile));
         });

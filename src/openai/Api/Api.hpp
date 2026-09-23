@@ -180,7 +180,8 @@ private:
 
     static void addImagePart(utils::MultipartBuilder &mp, const std::string_view partName, const std::string_view baseName, const dto::ImageFile &image)
     {
-        mp.addFile(partName, std::string(baseName) + '.' + std::string(image.extension()), image.mimeType(), image.data);
+        std::string fileName = std::string(baseName) + '.' + std::string(dto::toStringFormat(image.format));
+        mp.addFile(partName, std::move(fileName), dto::toStringMimeFormat(image.format), image.data);
     }
 
     static void addOptionalField(utils::MultipartBuilder &mp, const std::string_view name, const std::optional<std::string> &value)

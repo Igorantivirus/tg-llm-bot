@@ -27,6 +27,7 @@
 #include <utils/Base64.hpp>
 
 #include "MessageBuildInfo.hpp"
+#include "openai/dto/Image/ImageEnums.hpp"
 
 namespace handlers
 {
@@ -180,29 +181,6 @@ private:
     std::unordered_map<std::string, MessageCollector::Ptr> collections_;
 
 private:
-    inline dto::ImageFormat mimeTypeToFormat(std::string_view mimeType)
-    {
-        static const std::unordered_map<std::string_view, dto::ImageFormat> s_map = {
-            {"image/png",  dto::ImageFormat::png },
-            {"image/jpeg", dto::ImageFormat::jpeg},
-            {"image/jpg",  dto::ImageFormat::jpeg},
-            {"image/webp", dto::ImageFormat::webp},
-            {"image/gif",  dto::ImageFormat::gif },
-            {"image/tiff", dto::ImageFormat::tiff},
-            {"image/tif",  dto::ImageFormat::tiff},
-            {"image/bmp",  dto::ImageFormat::bmp },
-        };
-
-        if (auto it = s_map.find(mimeType); it != s_map.end())
-            return it->second;
-        return dto::ImageFormat::jpeg; // fallback
-    }
-
-    asio::awaitable<void> processImages(openai::AdditionalsToMessage &adds)
-    {
-
-        co_return;
-    }
 
     asio::awaitable<void> addPhoto(std::vector<TgBot::PhotoSize::Ptr> &photos, MessageBuildInfo &info)
     {
@@ -253,7 +231,7 @@ private:
             if (!base64Pr)
                 continue;
             store::ImageEntry entry;
-            entry.format = mimeTypeToFormat(img.type);
+            entry.format = dto::toStringFormat(img.type);
             entry.size = store::ImageEntry::makeSize(img.width, img.height);
             entry.data = std::move(binFile);
 

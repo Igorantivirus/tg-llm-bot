@@ -33,32 +33,6 @@ struct ImageFile
 {
     std::string            data;
     dto::ImageFormat format = dto::ImageFormat::png;
-
-    std::string_view mimeType() const
-    {
-        switch (format)
-        {
-        case dto::ImageFormat::png:
-            return "image/png";
-        case dto::ImageFormat::webp:
-            return "image/webp";
-        default:
-            return "image/jpeg";
-        }
-    }
-
-    std::string_view extension() const
-    {
-        switch (format)
-        {
-        case dto::ImageFormat::png:
-            return "png";
-        case dto::ImageFormat::webp:
-            return "webp";
-        default:
-            return "jpg";
-        }
-    }
 };
 
 struct EditImageRequest
